@@ -1,4 +1,6 @@
 {
     "BOT_TOKEN": "0000000:aaaaaaaaaaaaaaaaaaaa",
-    "start": "Hello"
+    "start": "\n*Hello, this is albaath\\-marks bot*\n  \n  *Bot manual:*\n  \n  1\\. Enter the id\\-number of a student to get his marks as a text message\n  2\\. You can enter many numbers in one message\n  3\\. To make it as HTML file use `/html` command followed by id\\-number\n  4\\. To select a specific range usw `/in\\_range` command followed by two numbers start, end\n  5\\. Also, if you want marks for a specific year,use command `/year1`, `/year2` \\.\\.\\. `/year5`\n\n  Good luck\n",
+    "caption": "",
+    "HTML_sign": ""
 }

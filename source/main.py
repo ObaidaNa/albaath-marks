@@ -13,6 +13,12 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
+logger = logging.getLogger(__name__)
+
+
+async def error(update, context):
+    logger.warning('Update "%s" caused error "%s"', update, context.error)
+
 
 def validate_input(numbers) -> bool:
     for number in numbers:
@@ -60,18 +66,23 @@ async def responser(update: Update, context: ContextTypes.DEFAULT_TYPE, numbers=
     message = await update.message.reply_text("⏳ يتم جلب المعلومات من الموقع ...")
     try:
         async with aiohttp.ClientSession() as session:
-            gathered = await asyncio.gather(*[asyncio.create_task(one_req(number, session))
-                                            for number in numbers])
+            tasks = [asyncio.create_task(one_req(number, session))
+                     for number in numbers]
+            gathered = await asyncio.gather(*tasks)
         if len(numbers) <= 5 and not html_bl:
             await send_txt_results(update, gathered)
         else:
             await message.edit_text("⌛️ يتم التحويل إلى ملف html ...")
             html_filename = html_maker(gathered)
             filename = "marks_" + str(int(random() * 100000)) + '.html'
-            await update.message.reply_document(html_filename, caption="By: @Albaath_marks_bot", filename=filename)
+            with open('config.json', 'r') as f:
+                caption = json.load(f).get('caption')
+            await update.message.reply_document(html_filename, caption=caption, filename=filename)
 
     except Exception:
         await update.message.reply_text("يوجد مشكلة حاليا, يرجى إعادة المحاولة", quote=True)
+        for task in tasks:
+            task.cancel()
     finally:
         await message.delete()
 
@@ -180,6 +191,7 @@ def main() -> None:
                 filters.TEXT & ~filters.COMMAND, callback=responser)
         ]
     )
+    application.add_error_handler(error)
     application.run_polling()
 
 

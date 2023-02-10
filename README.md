@@ -11,7 +11,7 @@ This is a Telegram bot written in Python that generates an HTML file or a text m
 - [Telegram Bot for University Marks Scraping](#telegram-bot-for-university-marks-scraping)
   - [Table of Contents](#table-of-contents)
   - [About the Code](#about-the-code)
-  - [How the bot works:](#how-the-bot-works)
+  - [How the bot works](#how-the-bot-works)
   - [Features](#features)
   - [Prerequisites](#prerequisites)
   - [Getting Started](#getting-started)
@@ -26,13 +26,21 @@ This project is a modular bot, made using Python 3 and the following libraries:
 - [aiohttp](https://docs.aiohttp.org/en/stable/)
 - [lxml](https://lxml.de/)
 
-## How the bot works:
+## How the bot works
 
 The bot scrapes a student marks table and converts the list of students' marks into an HTML table. For example:
-![universty_page](media/university_page_example.png)
-The list of students' marks will look like this in HTML:
-![merged_table](media/html_table.png)
 
+<img
+  src="media/university_page_example.png"
+  alt="university_page_example"
+  width="400"/>
+
+The list of students' marks will look like this in HTML:
+
+<img
+  src="media/html_table.png"
+  alt="html_table"
+  width="400"/>
 
 ## Features
 
@@ -40,7 +48,6 @@ The list of students' marks will look like this in HTML:
 - The bot also sends a normal text message of a student's marks to the user.
 - The bot allows the user to obtain HTML files of all students in a particular year using the `/year1`, `/year2`, `/year3`, `/year4`, and `/year5` commands.
 - The bot can also generate an HTML file of all students whose ID numbers are within a certain range using the `/in_range` command.
-
 
 ## Prerequisites
 
@@ -52,23 +59,28 @@ Before you use this bot, you need to have:
 ## Getting Started
 
 1. Clone this repository to your local machine.
+
     ```shell
-    git clone https://github.com/ObaidaNa/albaath-marks.git
-    cd albaath-marks
+    git clone https://github.com/ObaidaNa/albaath-marks.git && cd albaath-marks
     ```
+
 2. Add your bot token to the `config.json` file.
 3. Install the required packages using the following command:
+
     ```shell
     pip install -r requirements.txt
     ```
+
 4. Run the bot:
+
     ```shell
     python source/main.py
     ```
 
-> **Note:** 
-> 
-> You can change the start message in the `config.json` file
+> **Note:**
+>
+> - You can change the start message in the `config.json` file
+> - Also you can specify the html file caption (when it sended to the user) and the HTML sign (which appears on the top of the HTML file)
 
 ## Contributions
 

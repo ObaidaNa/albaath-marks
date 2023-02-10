@@ -1,3 +1,4 @@
+import json
 from lxml import etree
 from telegram.helpers import escape_markdown
 from random import shuffle
@@ -24,14 +25,14 @@ def initialize_table():
         margin: 40px auto;
         border-collapse: collapse;
         border: 1px solid #666;
-        width: 55%;
+        width: 65%;
         background: #7286D3;
         table-layout: fixed;
         }
         td {
-        font-size: 15px;
+        font-size: 16px;
         text-align: center;
-        padding: 3px;
+        padding: 6px;
         }
     """
     nfrowhtml = """
@@ -45,7 +46,8 @@ def initialize_table():
     """
     body = etree.SubElement(root, "body")
     h1 = etree.SubElement(body, "h1")
-    h1.text = "By: @Albaath_marks_bot"
+    with open('config.json', 'r') as f:
+        h1.text = json.load(f).get('HTML_sign')
     table = etree.SubElement(body, "table")
     nfrow = etree.fromstring(nfrowhtml)
     table.append(nfrow)
