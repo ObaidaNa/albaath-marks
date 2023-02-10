@@ -77,11 +77,13 @@ Before you use this bot, you need to have:
     python source/main.py
     ```
 
-> **Note:**
+> **Notes:**
 >
 > - You can change the start message in the `config.json` file
 > - Also you can specify the html file caption (when it sended to the user) and the HTML sign (which appears on the top of the HTML file)
-
+> - To convert an HTML file to PDF, here's some websites I've tested and was working fine with Arabic:
+>   - [pdfcrowd](https://pdfcrowd.com/html-to-pdf/#convert_by_upload)
+>   - [web2pdfconvert](https://www.web2pdfconvert.com/html/to/pdf/)
 ## Contributions
 
 If you would like to contribute to this project, feel free to submit a pull request. All contributions are welcome and appreciated!
