@@ -47,6 +47,7 @@ The list of students' marks will look like this in HTML:
 - The bot allows the user to obtain an HTML file of a single student's marks by providing their ID number using the `/html` command.
 - The bot also sends a normal text message of a student's marks to the user.
 - The bot can also generate an HTML file of all students whose ID numbers are within a certain range using the `/in_range` command.
+- The bot can work in inline mode, so you can type your bot username then the ID number of a students _(you should enable inline mode in your bot from [@BotFather](https://telegram.me/botfather) settings > Inline Mode > Turn on)_.
 
 ## Prerequisites
 
@@ -60,7 +61,8 @@ Before you use this bot, you need to have:
 1. Clone this repository to your local machine.
 
     ```shell
-    git clone https://github.com/ObaidaNa/albaath-marks.git && cd albaath-marks
+    git clone https://github.com/ObaidaNa/albaath-marks.git
+    cd albaath-marks
     ```
 
 2. Add your bot token to the `config.json` file.
