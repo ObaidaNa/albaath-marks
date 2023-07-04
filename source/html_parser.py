@@ -8,7 +8,8 @@ def initialize_table():
     root = etree.Element("html", dir="rtl")
     head = etree.SubElement(root, "head")
     etree.SubElement(
-        head, "meta", http_equiv="Content-Type", content="text/html; charset=UTF-8")
+        head, "meta", http_equiv="Content-Type", content="text/html; charset=UTF-8"
+    )
     style = etree.SubElement(head, "style")
     style.text = """
         body {
@@ -46,8 +47,8 @@ def initialize_table():
     """
     body = etree.SubElement(root, "body")
     h1 = etree.SubElement(body, "h1")
-    with open('config.json', 'r') as f:
-        h1.text = json.load(f).get('HTML_sign')
+    with open("config.json", "r") as f:
+        h1.text = json.load(f).get("HTML_sign")
     table = etree.SubElement(body, "table")
     nfrow = etree.fromstring(nfrowhtml)
     table.append(nfrow)
@@ -55,35 +56,34 @@ def initialize_table():
 
 
 def html_maker(students):
-
     root = initialize_table()
-    table = root.xpath('//table')[0]
+    table = root.xpath("//table")[0]
     cnt = 0
     cnt2 = 0
     for student in students:
-        parser = etree.HTMLParser(encoding='utf-8')
-        doc = etree.fromstring(student['html'].decode('cp1256'), parser)
+        parser = etree.HTMLParser(encoding="utf-8")
+        doc = etree.fromstring(student["html"].decode("cp1256"), parser)
         rows = doc.xpath("//table//tr")
         if len(rows) == 2:
             continue
         cnt += 1
-        fr_style = '''
+        fr_style = """
         text-align: center;
         color: white;
         background-color: #760000;
-        '''
-        base_row = etree.Element('tr')
-        frow = rows[0].xpath('.//td')[0]
-        frow.attrib['style'] = fr_style
+        """
+        base_row = etree.Element("tr")
+        frow = rows[0].xpath(".//td")[0]
+        frow.attrib["style"] = fr_style
         st_name = f"{frow.text} - {student['number']}"
-        sub_name = etree.Element('td')
-        sub_name.set('rowspan', str(len(rows) - 2))
+        sub_name = etree.Element("td")
+        sub_name.set("rowspan", str(len(rows) - 2))
         sub_name.text = st_name
         if cnt % 2:
-            sub_name.set('style', 'background-color: #8EA7E9')
+            sub_name.set("style", "background-color: #8EA7E9")
         base_row.append(sub_name)
         style = "background-color: {}"
-        for row in rows[2:]:
+        for i, row in enumerate(rows[2:]):
             cnt2 += 1
             cells = row.xpath(".//td")
             if len(cells) == 4:
@@ -95,29 +95,39 @@ def html_maker(students):
                         cells[3].attrib["style"] = style.format("#9efcd6")
             for j, cell in enumerate(cells):
                 if j < len(cells) - 1:
-                    cell.attrib['style'] = 'background-color: #FFF2F2;' if cnt2 % 2 else "background-color: #E5E0FF;"
+                    cell.attrib["style"] = (
+                        "background-color: #FFF2F2;"
+                        if cnt2 % 2
+                        else "background-color: #E5E0FF;"
+                    )
                 base_row.append(cell)
+            if i + 3 == len(rows):
+                base_row.attrib[
+                    "style"
+                ] = "border-bottom-style: solid;"  # add border to the last row in a student rows
             table.append(base_row)
-            base_row = etree.Element('tr')
+            base_row = etree.Element("tr")
     return etree.tostring(root)
 
 
 def parse_to_text(html_content: bytes, number: str) -> str:
-    books = ['📕', '📗', '📘', '📙']
+    books = ["📕", """",""" ",'''"]
     shuffle(books)
-    parser = etree.HTMLParser(encoding='utf-8')
-    doc = etree.fromstring(html_content.decode('cp1256'), parser)
+    parser = etree.HTMLParser(encoding="utf-8")
+    doc = etree.fromstring(html_content.decode("cp1256"), parser)
     rows = doc.xpath("//table//tr")
     if len(rows) <= 2:
-        return ''
+        return ""
 
-    output = ["👤 *", escape_markdown(rows[0].xpath('.//td')[0].text,
-                                     version=2) + f" \- {number} *:\n\n"]
+    output = [
+        "👤 *",
+        escape_markdown(rows[0].xpath(".//td")[0].text, version=2)
+        + f" \- {number} *:\n\n",
+    ]
     for i, row in enumerate(rows[2:]):
-        columns = row.xpath('.//td')
+        columns = row.xpath(".//td")
         output.append(f"{books[i % len(books)]} _*")
-        output.append(escape_markdown(
-            f"({columns[0].text})", version=2) + "*_\n")
+        output.append(escape_markdown(f"({columns[0].text})", version=2) + "*_\n")
         for index, column in enumerate(columns[1:]):
             output += f"_{column.text}_ " if index != 2 else f"*{column.text}*"
             if index == 2 and str(column.text).isnumeric():
