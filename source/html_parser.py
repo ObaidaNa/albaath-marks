@@ -111,7 +111,7 @@ def html_maker(students):
 
 
 def parse_to_text(html_content: bytes, number: str) -> str:
-    books = ["📕", """",""" ",'''"]
+    books = ["📕", "📗", "📘", "📙"]
     shuffle(books)
     parser = etree.HTMLParser(encoding="utf-8")
     doc = etree.fromstring(html_content.decode("cp1256"), parser)
