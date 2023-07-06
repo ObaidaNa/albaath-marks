@@ -4,7 +4,14 @@ import asyncio
 import os
 import aiohttp
 from telegram import Update, InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import Application, filters, MessageHandler, CommandHandler, ContextTypes, InlineQueryHandler
+from telegram.ext import (
+    Application,
+    filters,
+    MessageHandler,
+    CommandHandler,
+    ContextTypes,
+    InlineQueryHandler,
+)
 from html_parser import html_maker, parse_to_text
 from uuid import uuid4
 from random import random
@@ -21,6 +28,9 @@ async def error(update, context):
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
 
+spam_cache = {}
+
+
 def validate_input(numbers) -> bool:
     for number in numbers:
         if number.isdigit() and 1 <= int(number) <= 100000:
@@ -33,7 +43,10 @@ async def not_valid_input(update: Update):
 
 
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.inline_query.query.split()[0]
+    query = update.inline_query.query.split()
+    if not query:
+        return
+    query = query[0]
     if not validate_input([query]):
         return
     output = await inline_responser(update, context, query)
@@ -43,7 +56,8 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             title="إظهار النتيجة",
             description="يسمح بإدخال رقم جامعي واحد فقط",
             input_message_content=InputTextMessageContent(
-                message_text=output, parse_mode="MarkdownV2")
+                message_text=output, parse_mode="MarkdownV2"
+            ),
         )
     ]
     await update.inline_query.answer(results)
@@ -52,77 +66,102 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def inline_responser(update, context, number):
     async with aiohttp.ClientSession() as session:
         response = await one_req(number, session)
-    output = parse_to_text(response['html'], response['number'])
+    output = parse_to_text(response["html"], response["number"])
     return output if output else "الرقم الامتحاني خاطئ"
 
 
-async def responser(update: Update, context: ContextTypes.DEFAULT_TYPE, numbers=(), html_bl=False, caption=''):
+async def responser(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    numbers=(),
+    html_bl=False,
+    caption="",
+):
     if not numbers:
         numbers = context.args if context.args else update.message.text.split()
+        if len(numbers) > 10:
+            await update.message.reply_text(
+                "يمكنك ادخال 10 ارقام ك حد أقصى", quote=True
+            )
+            return
         isvalid = validate_input(numbers)
         if not isvalid:
             return await not_valid_input(update)
+    user_id = update.message.from_user.id
+    global spam_cache
+    if spam_cache.get(user_id):
+        await update.message.reply_text(
+            "يرجى الانتظار حتى انتهاء طلبك السابق", quote=True
+        )
+        return
+    spam_cache[user_id] = True
+    context.application.create_task(doing_the_work(update, numbers, html_bl, caption))
 
+
+async def doing_the_work(update: Update, numbers, html_bl, caption):
     message = await update.message.reply_text("⏳ يتم جلب المعلومات من الموقع ...")
+    user_id = update.message.from_user.id
+
     try:
         async with aiohttp.ClientSession() as session:
-            tasks = [asyncio.create_task(one_req(number, session))
-                     for number in numbers]
+            tasks = [
+                asyncio.create_task(one_req(number, session)) for number in numbers
+            ]
             gathered = await asyncio.gather(*tasks)
         if len(numbers) <= 5 and not html_bl:
             await send_txt_results(update, gathered)
         else:
             await message.edit_text("⌛️ يتم التحويل إلى ملف html ...")
             html_filename = html_maker(gathered)
-            filename = "marks_" + str(int(random() * 100000)) + '.html'
+            filename = "marks_" + str(int(random() * 100000)) + ".html"
             if not caption:
-                with open('config.json', 'r', encoding='utf-8') as f:
-                    caption = json.load(f).get('caption')
-            await update.message.reply_document(html_filename, caption=caption, filename=filename, parse_mode="MarkdownV2")
+                with open("config.json", "r", encoding="utf-8") as f:
+                    caption = json.load(f).get("caption")
+            await update.message.reply_document(
+                html_filename,
+                caption=caption,
+                filename=filename,
+                parse_mode="MarkdownV2",
+            )
 
     except Exception as exp:
         print(exp)
-        await update.message.reply_text("يوجد مشكلة حاليا, يرجى إعادة المحاولة", quote=True)
+        await update.message.reply_text(
+            "يوجد مشكلة حاليا, يرجى إعادة المحاولة", quote=True
+        )
         for task in tasks:
             task.cancel()
     finally:
+        spam_cache[user_id] = False
         await message.delete()
 
 
-async def in_range(update: Update, context: ContextTypes.DEFAULT_TYPE, args=(), caption=''):
-    if not args:
-        args = context.args
-    strt, end = int(args[0]), int(args[1])
-    if strt > end:
-        strt, end = end, strt
-    if strt < 1 or end > 100000:
-        await update.message.reply_text("أدخل مجال صحيح")
-        return
-    await responser(update, context, [x for x in range(strt, end)], caption=caption)
-
-
-async def one_req(number, session: aiohttp.ClientSession, recurse=0) -> dict[bytes, int]:
+async def one_req(
+    number, session: aiohttp.ClientSession, recurse=0
+) -> dict[bytes, int]:
     if recurse > 10:
         raise Exception("uncompleted request, try again later")
 
     try:
         url = "https://exam.albaath-univ.edu.sy/exam-it/re.php"
-        async with session.post(url, data={'number1': number}) as req:
+        async with session.post(url, data={"number1": number}) as req:
             res_data = await req.read()
         if req.status != 200:
             await asyncio.sleep(0.5)
-            return await one_req(number, session, recurse+1)
-        return {'html': res_data, 'number': number}
+            return await one_req(number, session, recurse + 1)
+        return {"html": res_data, "number": number}
     except:
         await asyncio.sleep(0.5)
-        return await one_req(number, session, recurse+1)
+        return await one_req(number, session, recurse + 1)
 
 
 async def send_txt_results(update: Update, students):
     for student in students:
-        output = parse_to_text(student['html'], student['number'])
+        output = parse_to_text(student["html"], student["number"])
         if not output:
-            await update.message.reply_text(f"الرقم الامتحاني {student['number']} خاطئ", quote=True)
+            await update.message.reply_text(
+                f"الرقم الامتحاني {student['number']} خاطئ", quote=True
+            )
         else:
             await update.message.reply_text(output, parse_mode="MarkdownV2")
 
@@ -133,11 +172,11 @@ async def html_it(*args):
 
 
 async def start(update: Update, context) -> None:
-
-    with open('config.json', 'r', encoding='utf-8') as f:
-        output = json.load(f)['start']
-    await update.message.reply_text(output, parse_mode="MarkdownV2",
-                                    disable_web_page_preview=True)
+    with open("config.json", "r", encoding="utf-8") as f:
+        output = json.load(f)["start"]
+    await update.message.reply_text(
+        output, parse_mode="MarkdownV2", disable_web_page_preview=True
+    )
 
 
 def get_token() -> str:
@@ -149,15 +188,14 @@ def get_token() -> str:
         config = json.load(file)
     token = config["BOT_TOKEN"]
     if token == "0000000:aaaaaaaaaaaaaaaaaaaa":
-        raise Exception(
-            "Please add your bot token, get it from https://t.me/botfather")
+        raise Exception("Please add your bot token, get it from https://t.me/botfather")
     return token
 
 
 def init_config_file():
     token = input("Please input your bot token (get it from @Botfather):\n")
-    with open('config.json', 'w') as f:
-        json.dump({'BOT_TOKEN': token, 'start': 'Hello'}, f)
+    with open("config.json", "w") as f:
+        json.dump({"BOT_TOKEN": token, "start": "Hello"}, f)
 
 
 def main() -> None:
@@ -166,11 +204,9 @@ def main() -> None:
     application.add_handlers(
         [
             CommandHandler(["start", "help"], start),
-            CommandHandler("in_range", in_range),
             CommandHandler("html", html_it),
             InlineQueryHandler(inline_query),
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND, callback=responser)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, callback=responser),
         ]
     )
     application.add_error_handler(error)
