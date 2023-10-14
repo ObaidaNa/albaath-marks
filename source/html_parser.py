@@ -62,7 +62,7 @@ def html_maker(students):
     cnt2 = 0
     for student in students:
         parser = etree.HTMLParser(encoding="utf-8")
-        doc = etree.fromstring(student["html"].decode("cp1256"), parser)
+        doc = etree.fromstring(student["html"].decode("utf-8"), parser)
         rows = doc.xpath("//table//tr")
         if len(rows) == 2:
             continue
@@ -114,7 +114,7 @@ def parse_to_text(html_content: bytes, number: str) -> str:
     books = ["📕", "📗", "📘", "📙"]
     shuffle(books)
     parser = etree.HTMLParser(encoding="utf-8")
-    doc = etree.fromstring(html_content.decode("cp1256"), parser)
+    doc = etree.fromstring(html_content.decode("utf-8"), parser)
     rows = doc.xpath("//table//tr")
     if len(rows) <= 2:
         return ""

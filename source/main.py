@@ -12,6 +12,7 @@ from telegram.ext import (
     ContextTypes,
     InlineQueryHandler,
 )
+
 from html_parser import html_maker, parse_to_text
 from uuid import uuid4
 from random import random
@@ -136,9 +137,7 @@ async def doing_the_work(update: Update, numbers, html_bl, caption):
         await message.delete()
 
 
-async def one_req(
-    number, session: aiohttp.ClientSession, recurse=0
-) -> dict[bytes, int]:
+async def one_req(number, session: aiohttp.ClientSession, recurse=0) -> dict:
     if recurse > 10:
         raise Exception("uncompleted request, try again later")
 
@@ -179,11 +178,25 @@ async def start(update: Update, context) -> None:
     )
 
 
+def check_environment_variables():
+    with open("config.json") as f:
+        config = json.load(f)
+
+    variables = ["BOT_TOKEN", "start", "caption", "HTML_sign"]
+
+    for variable in variables:
+        if os.getenv(variable):
+            config[variable] = os.getenv(variable)
+
+    with open("config.json", "w") as f:
+        json.dump(config, f)
+
+
 def get_token() -> str:
     filename = "config.json"
     if not os.path.exists(filename):
         init_config_file()
-
+    check_environment_variables()
     with open(filename, "r") as file:
         config = json.load(file)
     token = config["BOT_TOKEN"]
