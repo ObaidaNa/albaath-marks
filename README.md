@@ -80,8 +80,9 @@ Before you use this bot, you need to have:
 
 > **Notes:**
 >
-> - You can change the start message in the `config.json` file
+> - You can change the start message in the `config.json` file.
 > - Also you can specify the html file caption (when it sended to the user) and the HTML sign (which appears on the top of the HTML file)
+> - Environment variables have a priority over the `config.json` file variables, so you can leave `config.json` empty and only pass environment variables instead.
 > - To convert an HTML file to PDF, here's some websites I've tested and was working fine with Arabic:
 >   - [web2pdfconvert](https://www.web2pdfconvert.com/html/to/pdf/)
 >   - [convertio](https://convertio.co/ar/html-pdf/)
