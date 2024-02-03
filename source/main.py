@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import aiohttp
 from admin_commands import (
+    add_new_admin,
     add_to_white_list,
     cancel_command,
     clear_spam_cache,
@@ -25,6 +26,7 @@ from admin_commands import (
     get_from_db_by_subject,
     get_public_message,
     get_total_users,
+    remove_admin,
     remove_white_list,
     send_db_backup,
     send_db_now,
@@ -571,6 +573,8 @@ def main() -> None:
             CommandHandler("update_database", update_database),
             CommandHandler("add_white_list", add_to_white_list),
             CommandHandler("remove_white_list", remove_white_list),
+            CommandHandler("add_admin", add_new_admin),
+            CommandHandler("remove_admin", remove_admin),
             CommandHandler("get_from_db_by_student_id", get_from_db_by_student_id),
             CommandHandler("get_from_db_by_subject", get_from_db_by_subject),
             CommandHandler("download_this_file", download_this_file),

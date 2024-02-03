@@ -43,6 +43,19 @@ def verify_admin(func):
     return inner_func
 
 
+def verify_bot_owner(func):
+    async def inner_func(
+        update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
+    ):
+        query = update.inline_query
+        user_id = query.from_user.id if query else update.message.from_user.id
+        user = get_user_from_db(get_session(context), user_id)
+        if user and user_id == DEV_ID:
+            return await func(update, context, *args, **kwargs)
+
+    return inner_func
+
+
 @verify_admin
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -174,6 +187,26 @@ async def unblock_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with DbSession.begin() as session:
         user = get_user_from_db(session, user_id)
         user.is_blocked = False
+    await update.message.reply_text("Done")
+
+
+@verify_bot_owner
+async def add_new_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = context.args[0]
+    DbSession = get_session(context)
+    with DbSession.begin() as session:
+        user = get_user_from_db(session, user_id)
+        user.is_admin = True
+    await update.message.reply_text("Done")
+
+
+@verify_bot_owner
+async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = context.args[0]
+    DbSession = get_session(context)
+    with DbSession.begin() as session:
+        user = get_user_from_db(session, user_id)
+        user.is_admin = False
     await update.message.reply_text("Done")
 
 
