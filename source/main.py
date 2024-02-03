@@ -16,6 +16,8 @@ import aiohttp
 from admin_commands import (
     add_new_admin,
     add_to_white_list,
+    admin_help_message,
+    block_user,
     cancel_command,
     clear_spam_cache,
     delete_all_students,
@@ -31,6 +33,7 @@ from admin_commands import (
     send_db_backup,
     send_db_now,
     send_message,
+    unblock_user,
     update_database,
 )
 from helpers import (
@@ -575,11 +578,14 @@ def main() -> None:
             CommandHandler("remove_white_list", remove_white_list),
             CommandHandler("add_admin", add_new_admin),
             CommandHandler("remove_admin", remove_admin),
+            CommandHandler("block_user", block_user),
+            CommandHandler("unblock_user", unblock_user),
             CommandHandler("get_from_db_by_student_id", get_from_db_by_student_id),
             CommandHandler("get_from_db_by_subject", get_from_db_by_subject),
             CommandHandler("download_this_file", download_this_file),
             CommandHandler("get_all_subjects", get_all_subjects),
             CommandHandler("delete_all_students", delete_all_students),
+            CommandHandler("admin_help", admin_help_message),
             InlineQueryHandler(inline_query),
             MessageHandler(filters.TEXT & ~filters.COMMAND, callback=responser),
             CallbackQueryHandler(responser, pattern=re.compile(r"^\d{1,5}$")),

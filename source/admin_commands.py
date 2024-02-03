@@ -282,3 +282,30 @@ async def delete_all_students(update: Update, context: ContextTypes.DEFAULT_TYPE
         db_delete_all_subjects(session)
         db_delete_all_students(session)
     await update.message.reply_text("done, all students has been deleted!")
+
+
+@verify_admin
+async def admin_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    output = (
+        "/send_db_backup (sends current db file)",
+        "/update_database [reply to .sqlite3 file] (replace db file with sended one)",
+        "/clear_spam_cache (clear the cache if something goes wrong)",
+        "/in_range x y (fetch students between x, y)",
+        "/lazy_in_range x y z (fetch students that haven't been updated "
+        "since z minutes otherwise get results from the db)",
+        "/exec command (execute a command)",
+        "/get_db_len (get the number of regestred users in the bot)",
+        "/add_white_list [userid]",
+        "/remove_white_list [userid]",
+        "/add_admin [userid]",
+        "/remove_admin [userid]",
+        "/block_user [user_id]",
+        "/unblock_user [user_id]",
+        "/delete_all_students (delete all stored students and their marks)",
+        "/get_from_db_by_student_id [university id] (get result from db only)",
+        "/get_from_db_by_subject [subject name]",
+        "/download_this_file [reply to file] (it will download it to it's local storage)",
+        "/get_all_subjects (get all stored marks of all subjects, in md format)",
+        "/admin_help (show this message)",
+    )
+    await update.message.reply_text("\n\n".join(output))
