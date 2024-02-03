@@ -2,6 +2,5 @@
     "BOT_TOKEN": "0000000:aaaaaaaaaaaaaaaaaaaa",
     "start": "\n*Hello, this is albaath\\-marks bot*\n  \n  *Bot manual:*\n  \n  1\\. Enter the id\\-number of a student to get his marks as a text message\n  2\\. You can enter many numbers in one message\n  3\\. To make it as HTML file use `/html` command followed by id\\-number\n\n  Good luck\n",
     "caption": "",
-    "HTML_sign": "",
-    "DEVELOPER_USER_ID": "12345678"
+    "HTML_sign": ""
 }
