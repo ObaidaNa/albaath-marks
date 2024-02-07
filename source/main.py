@@ -12,7 +12,6 @@ from random import random
 from typing import List, Optional
 from uuid import uuid4
 
-import aiohttp
 from admin_commands import (
     add_new_admin,
     add_to_white_list,
@@ -73,7 +72,8 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from web_scrapper import multi_async_request, one_req
+from telegram.helpers import escape_markdown
+from web_scrapper import multi_async_request
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -121,15 +121,30 @@ def validate_input(numbers: List[str]) -> bool:
 
 
 @verify_blocked_user
-async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def inline_query_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     query = update.inline_query.query
     if not query:
         return
-    query = query.split()[0]
-    if not validate_input([query]):
+    number = query.split()[0]
+    if not validate_input([number]):
         return
-
-    output = await inline_responser(update, context, query)
+    with get_session(context).begin() as session:
+        student = get_student(session, int(number))
+        if student:
+            output = parse_marks_to_text(student)
+            output += (
+                "\n\n⚠️ *هذه العلامات مخزنة مسبقا على البوت وقد لا تكون محدّثة، "
+                "للحصول على العلامات من الموقع يرجى إرسال الرقم إلى البوت مباشرة*:\n"
+                f"@{escape_markdown(context.bot.username, 2)}"
+            )
+        else:
+            output = (
+                "⚠️ *الرقم الامتحاني خاطئ، أو أن العلامات لم تصدر بعد*\n\n"
+                "للتأكد، يرجى إرسال الرقم للبوت مباشرة لجلب العلامات من الموقع:\n"
+                f"@{escape_markdown(context.bot.username, 2)}"
+            )
     results = [
         InlineQueryResultArticle(
             id=str(uuid4()),
@@ -141,19 +156,6 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
     ]
     await update.inline_query.answer(results)
-
-
-async def inline_responser(update, context, number):
-    async with aiohttp.ClientSession() as session:
-        response = await one_req(number, session, 2)
-    Session = get_session(context)
-    with Session() as conn:
-        student = extract_data(conn, response)
-        conn.commit()
-
-    output = parse_marks_to_text(student, True)
-
-    return output if output else "الرقم الامتحاني خاطئ"
 
 
 async def responser(
@@ -190,7 +192,7 @@ async def responser(
         if not isvalid:
             return await update.message.reply_text("أدخل أرقام صحيحة ...")
 
-    if query or len(numbers) > 10:
+    if query or len(numbers) > 10 or html_bl:
         context.application.create_task(
             doing_the_work(
                 update,
@@ -586,7 +588,7 @@ def main() -> None:
             CommandHandler("get_all_subjects", get_all_subjects),
             CommandHandler("delete_all_students", delete_all_students),
             CommandHandler("admin_help", admin_help_message),
-            InlineQueryHandler(inline_query),
+            InlineQueryHandler(inline_query_handler),
             MessageHandler(filters.TEXT & ~filters.COMMAND, callback=responser),
             CallbackQueryHandler(responser, pattern=re.compile(r"^\d{1,5}$")),
         ]
