@@ -241,7 +241,7 @@ async def get_from_db_by_subject(update: Update, context: ContextTypes.DEFAULT_T
 
         marks = get_marks_by_subject(session, subject.id)
         marks.sort(key=lambda x: x.student.name)
-    md_bytes = convert_makrs_to_md_file(subject, marks)
+    md_bytes = convert_makrs_to_md_file(subject, marks, context.bot.username)
     await context.bot.send_document(DEV_ID, md_bytes, filename=f"{subject.name}.txt")
 
 
@@ -256,7 +256,7 @@ async def get_all_subjects(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for subject in subjects:
             marks = get_marks_by_subject(session, subject.id)
             marks.sort(key=lambda x: x.student.name)
-            md_bytes = convert_makrs_to_md_file(subject, marks)
+            md_bytes = convert_makrs_to_md_file(subject, marks, context.bot.username)
             await context.bot.send_document(
                 DEV_ID, md_bytes, filename=f"{subject.name}.txt"
             )

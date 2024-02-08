@@ -28,12 +28,15 @@ def get_session(context: ContextTypes.DEFAULT_TYPE) -> sessionmaker[Session]:
     return MySession
 
 
-def convert_makrs_to_md_file(subject: SubjectName, marks: List[SubjectMark]) -> bytes:
+def convert_makrs_to_md_file(
+    subject: SubjectName, marks: List[SubjectMark], bot_username: str
+) -> bytes:
     lst = [
         "# {}\n\n".format(subject.name),
         "| الاسم                       | الرقم الجامعي | العملي | النظري | المجموع |\n",
         "| --------------------------- | ------------- | ------ | ------ | ------- |\n",
     ]
+    passed_cnt = 0
     for mark in marks:
         lst.append(
             "| {} | {} | {} | {} | {} |\n".format(
@@ -44,7 +47,13 @@ def convert_makrs_to_md_file(subject: SubjectName, marks: List[SubjectMark]) -> 
                 mark.total,
             )
         )
-
+        if mark.total >= 60:
+            passed_cnt += 1
+    success_rate = round(passed_cnt / len(marks) * 100, 2)
+    lst.append("\n\n# نسبة النجاح: {}\n".format(success_rate))
+    lst.append("- العدد الكلي: {}\n".format(len(marks)))
+    lst.append("- عدد الناجحين: {}\n\n".format(passed_cnt))
+    lst.append("# By: @{}".format(bot_username))
     output = "".join(lst)
     with BytesIO() as f:
         f.write(output.encode())
