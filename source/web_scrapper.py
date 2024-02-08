@@ -35,9 +35,9 @@ async def one_req(
         async with session.post(UNIVERSITY_URL, data={"number1": number}) as req:
             res_data = await req.read()
         if req.status != 200:
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1)
             return await one_req(number, session, recurse_limit - 1)
         return WebStudentResponse(number, res_data)
     except Exception:
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(1)
         return await one_req(number, session, recurse_limit - 1)

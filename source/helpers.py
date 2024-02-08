@@ -2,7 +2,7 @@ import logging
 import os
 import random
 from io import BytesIO
-from typing import List
+from typing import List, Optional
 
 from models import Base, BotUser, Student, SubjectMark, SubjectName
 from queries import get_user_from_db, insert_user, is_exist
@@ -86,7 +86,11 @@ def check_and_insert_user(
     DbSession = get_session(context)
 
     query = update.callback_query
-    tg_user = query.from_user if query else update.message.from_user
+    tg_user = query.from_user if query else None
+    if update.message:
+        tg_user = update.message.from_user
+    elif update.edited_message:
+        tg_user = update.edited_message.from_user
     with DbSession.begin() as session:
         if not is_exist(session, tg_user.id):
             insert_user(
@@ -124,3 +128,16 @@ def parse_marks_to_text(student: Student, from_website_sign=False) -> str:
     if from_website_sign:
         output.append("\n> *من الموقع* ✔️")
     return "".join(output)
+
+
+def get_user_id(update: Update) -> Optional[int]:
+    query = update.callback_query
+    user_id = None
+    if query:
+        user_id = query.from_user.id
+    elif update.message:
+        user_id = update.message.from_user.id
+    elif update.edited_message:
+        user_id = update.edited_message.from_user.id
+
+    return user_id

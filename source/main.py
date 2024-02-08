@@ -40,6 +40,7 @@ from helpers import (
     SPAM_CACHE,
     check_and_insert_user,
     get_session,
+    get_user_id,
     init_database,
     parse_marks_to_text,
     verify_blocked_user,
@@ -166,14 +167,15 @@ async def responser(
     caption="",
 ):
     query = update.callback_query
-    user_id = query.from_user.id if query else update.message.from_user.id
+    user_id = get_user_id(update)
     user = check_and_insert_user(update, context)
+    message = update.message if update.message else update.edited_message
     if SPAM_CACHE.get(user_id):
         output = "يرجى الانتظار حتى انتهاء طلبك السابق"
         if query:
             await query.answer(output)
         else:
-            await update.message.reply_text(output, quote=True)
+            await message.reply_text(output, quote=True)
         return
 
     recurse_limit = 15 if user.is_whitelisted else 3
@@ -182,9 +184,10 @@ async def responser(
             numbers = context.args
         elif query:
             numbers = (query.data,)
+        elif update.edited_message:
+            numbers = update.edited_message.text.split()
         else:
             numbers = update.message.text.split()
-
         if len(numbers) > 10 and not user.is_whitelisted and user.telegram_id != DEV_ID:
             await update.message.reply_text("يمكنك ادخال 10 ارقام كحد أقصى", quote=True)
             return
@@ -214,8 +217,8 @@ async def responser(
 async def get_stored_marks(
     update: Update, context: ContextTypes.DEFAULT_TYPE, numbers: List[int]
 ):
-    query = update.callback_query
-    user_id = query.from_user.id if query else update.message.from_user.id
+    user_id = get_user_id(update)
+    message = update.message if update.message else update.edited_message
     outputs_coroutines = []
     unsaved_numbers = []
     with get_session(context).begin() as session:
@@ -232,7 +235,7 @@ async def get_stored_marks(
                         ]
                     ]
                 )
-                message = update.message.reply_text(
+                message = message.reply_text(
                     parse_marks_to_text(student),
                     ParseMode.MARKDOWN_V2,
                     reply_markup=keyboard,
@@ -356,7 +359,7 @@ async def html_it(*args):
 
 @verify_blocked_user
 async def danger_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
+    user_id = get_user_id(update)
     user = check_and_insert_user(update, context)
     if (not user.is_whitelisted) and user_id != DEV_ID:
         await update.message.reply_text("تم إيقاف هذه الميزة بسبب الضغط", quote=True)
@@ -402,7 +405,7 @@ async def danger_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + "للإلغاء إضغط على /cancel\\_danger"
     )
     await update.message.reply_text(output, ParseMode.MARKDOWN_V2, quote=True)
-    user_id = update.message.from_user.id
+    user_id = get_user_id(update)
 
     task = context.application.create_task(
         new_update_checker(context, user_id, last_lenght, number)
@@ -445,7 +448,7 @@ async def cancel_danger(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def in_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
+    user_id = get_user_id(update)
     user = get_user_from_db(get_session(context), user_id)
     if (user_id == DEV_ID) or (user and user.is_whitelisted):
         start_number, end_number = map(int, context.args)
@@ -454,15 +457,17 @@ async def in_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def lazy_in_range(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, caption: str = ""
-):
-    user_id = update.message.from_user.id
-
+async def lazy_in_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = get_user_id(update)
     user = get_user_from_db(get_session(context), user_id)
     if not ((user_id == DEV_ID) or (user and user.is_whitelisted)):
         return
+    context.application.create_task(lazy_in_range_task(update, context))
+    await update.message.reply_text("task has been started...")
 
+
+async def lazy_in_range_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = get_user_id(update)
     unsaved_numbers = []
     start_number, end_number, time_offset = map(int, context.args)
     numbers = [i for i in range(start_number, end_number + 1)]
@@ -502,9 +507,8 @@ async def lazy_in_range(
     html_filename = html_maker(all_students)
     await update.message.reply_text("done, time taken: {}".format(time.time() - start))
     filename = "marks_" + str(int(random() * 100000)) + ".html"
-    if not caption:
-        with open("config.json", "r", encoding="utf-8") as f:
-            caption = json.load(f).get("caption")
+    with open("config.json", "r", encoding="utf-8") as f:
+        caption = json.load(f).get("caption")
     caption += "\n{} \\- {}".format(numbers[0], numbers[-1])
     await context.bot.send_document(
         user_id,
