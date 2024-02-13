@@ -196,18 +196,21 @@ async def responser(
             return await update.message.reply_text("أدخل أرقام صحيحة ...")
 
     if query or len(numbers) > 10 or html_bl:
-        context.application.create_task(
+        task_uuid = str(uuid4())
+        task = context.application.create_task(
             doing_the_work(
                 update,
                 context,
                 user_id,
                 numbers,
+                task_uuid,
                 html_bl,
                 caption,
                 user_msg_id=query.message.id if query else None,
                 recurse_limit=recurse_limit,
             )
         )
+        context.user_data[task_uuid] = task
         if query:
             await query.answer()
     else:
@@ -245,8 +248,15 @@ async def get_stored_marks(
                 unsaved_numbers.append(number)
 
     if unsaved_numbers:
-        await doing_the_work(update, context, user_id, unsaved_numbers)
-
+        task_uuid = str(uuid4())
+        task = context.application.create_task(
+            doing_the_work(update, context, user_id, unsaved_numbers, task_uuid)
+        )
+        context.user_data[task_uuid] = task
+        try:
+            await task
+        except asyncio.CancelledError:
+            return
     for i, output_coro in enumerate(outputs_coroutines):
         if i and i % 5 == 0:
             await asyncio.sleep(1)
@@ -258,14 +268,28 @@ async def doing_the_work(
     context: ContextTypes.DEFAULT_TYPE,
     user_id: int,
     numbers: list[int],
+    task_uuid: str,
     html_bl: Optional[bool] = False,
     caption: Optional[str] = None,
     user_msg_id: int | None = None,
     recurse_limit=2,
 ):
     SPAM_CACHE[user_id] = True
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "❌ إلغاء العملية",
+                    callback_data=task_uuid,
+                )
+            ]
+        ]
+    )
     message = await context.bot.send_message(
-        user_id, "⏳ يتم جلب المعلومات من الموقع ...", reply_to_message_id=user_msg_id
+        user_id,
+        "⏳ يتم جلب المعلومات من الموقع ...",
+        reply_to_message_id=user_msg_id,
+        reply_markup=keyboard,
     )
     try:
         gathered_results = await multi_async_request(numbers, recurse_limit)
@@ -309,7 +333,12 @@ async def doing_the_work(
         )
     finally:
         SPAM_CACHE[user_id] = False
+
+    try:
         await message.delete()
+        del context.user_data[task_uuid]
+    except Exception:
+        pass
 
 
 async def send_txt_results(
@@ -348,6 +377,17 @@ async def send_txt_results(
         if i and i % 5 == 0:
             await asyncio.sleep(1)
         await coro
+
+
+async def cancel_task_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    try:
+        context.user_data[query.data].cancel()
+        await query.message.edit_reply_markup()
+        await query.answer("تم إلغاء العملية بنجاح!")
+        del context.user_data[query.data]
+    except Exception:
+        await query.answer("لقد تم إلغاء هذه العملية مسبقا", show_alert=True)
 
 
 # some redirecting functions
@@ -566,6 +606,10 @@ def main() -> None:
         fallbacks=[CommandHandler("cancel", cancel_command)],
     )
     application.add_handler(conv_handler)
+    uuid4_pattern = re.compile(
+        r"^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}$",
+        re.I,
+    )
     application.add_handlers(
         [
             CommandHandler(["start", "help"], start),
@@ -594,6 +638,7 @@ def main() -> None:
             InlineQueryHandler(inline_query_handler),
             MessageHandler(filters.TEXT & ~filters.COMMAND, callback=responser),
             CallbackQueryHandler(responser, pattern=re.compile(r"^\d{1,5}$")),
+            CallbackQueryHandler(cancel_task_handler, pattern=uuid4_pattern),
         ]
     )
     application.add_error_handler(error_handler)
