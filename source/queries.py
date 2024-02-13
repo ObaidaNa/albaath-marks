@@ -81,6 +81,18 @@ def get_subject_mark(
 
 
 @session_wrapper
+def get_student_rank_by_subject(session: Session, student_mark: SubjectMark) -> int:
+    stmt = (
+        select(func.count())
+        .select_from(SubjectMark)
+        .where(SubjectMark.subject_id == student_mark.subject_id)
+        .where(SubjectMark.total > student_mark.total)
+    )
+
+    return int(session.execute(stmt).one()[0]) + 1
+
+
+@session_wrapper
 def insert_or_update_mark(session: Session, new_marks: SubjectMark):
     subject_mark = get_subject_mark(session, new_marks.student_id, new_marks.subject_id)
     if not subject_mark:

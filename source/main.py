@@ -134,7 +134,7 @@ async def inline_query_handler(
     with get_session(context).begin() as session:
         student = get_student(session, int(number))
         if student:
-            output = parse_marks_to_text(student)
+            output = parse_marks_to_text(student, context)
             output += (
                 "\n\n⚠️ *هذه العلامات مخزنة مسبقا على البوت وقد لا تكون محدّثة، "
                 "للحصول على العلامات من الموقع يرجى إرسال الرقم إلى البوت مباشرة*:\n"
@@ -218,7 +218,7 @@ async def get_stored_marks(
     update: Update, context: ContextTypes.DEFAULT_TYPE, numbers: List[int]
 ):
     user_id = get_user_id(update)
-    message = update.message if update.message else update.edited_message
+    update_message = update.message if update.message else update.edited_message
     outputs_coroutines = []
     unsaved_numbers = []
     with get_session(context).begin() as session:
@@ -235,14 +235,13 @@ async def get_stored_marks(
                         ]
                     ]
                 )
-                message = message.reply_text(
-                    parse_marks_to_text(student),
+                message = update_message.reply_text(
+                    parse_marks_to_text(student, context),
                     ParseMode.MARKDOWN_V2,
                     reply_markup=keyboard,
                 )
                 outputs_coroutines.append(message)
             else:
-                # handel it
                 unsaved_numbers.append(number)
 
     if unsaved_numbers:
@@ -324,7 +323,7 @@ async def send_txt_results(
     outputs_coroutines = []
 
     for student in students:
-        output = parse_marks_to_text(student, True)
+        output = parse_marks_to_text(student, context, True)
         if student.name == "NULL":
             coro = context.bot.send_message(
                 user_id,

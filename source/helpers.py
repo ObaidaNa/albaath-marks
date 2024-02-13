@@ -5,7 +5,7 @@ from io import BytesIO
 from typing import List, Optional
 
 from models import Base, BotUser, Student, SubjectMark, SubjectName
-from queries import get_user_from_db, insert_user, is_exist
+from queries import get_student_rank_by_subject, get_user_from_db, insert_user, is_exist
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram import Update
@@ -112,7 +112,9 @@ def check_and_insert_user(
     return user
 
 
-def parse_marks_to_text(student: Student, from_website_sign=False) -> str:
+def parse_marks_to_text(
+    student: Student, context: ContextTypes.DEFAULT_TYPE, from_website_sign=False
+) -> str:
     marks = student.subjects_marks
     marks.sort(key=lambda x: x.subject.name)
     books = ["📕", "📗", "📘", "📙"]
@@ -125,17 +127,23 @@ def parse_marks_to_text(student: Student, from_website_sign=False) -> str:
         escape_markdown(student.name, version=2)
         + f" \- {student.university_number} *:\n\n",
     ]
-    for i, subject in enumerate(marks):
-        output.append(f"{books[i % len(books)]} _*")
-        output.append(escape_markdown(f"({subject.subject.name})", version=2) + "*_\n")
-        output.append(f"_{subject.amali}_ ")
-        output.append(f"_{subject.nazari}_ ")
-        output.append(f"*{subject.total}* ")
-        if str(subject.total).isnumeric():
-            output.append(" ✅" if int(subject.total) >= 60 else " ❌")
-        output.append(escape_markdown("\n-----------\n", version=2))
-    if from_website_sign:
-        output.append("\n> *من الموقع* ✔️")
+    Session = get_session(context)
+    with Session.begin() as session:
+        for i, subject in enumerate(marks):
+            output.append(f"{books[i % len(books)]} _*")
+            output.append(
+                escape_markdown(f"({subject.subject.name})", version=2) + "*_\n"
+            )
+            output.append(f"_{subject.amali}_ ")
+            output.append(f"_{subject.nazari}_ ")
+            output.append(f"*{subject.total}* ")
+            if str(subject.total).isnumeric():
+                output.append(" ✅" if int(subject.total) >= 60 else " ❌")
+            rank = get_student_rank_by_subject(session, subject)
+            output.append("\n📊 _الترتيب_: `{}`".format(rank))
+            output.append(escape_markdown("\n-----------\n", version=2))
+        if from_website_sign:
+            output.append("\n> *من الموقع* ✔️")
     return "".join(output)
 
 
