@@ -17,6 +17,13 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 DATABASE_NAME = os.getenv("DATABASE_NAME", "marks_bot_db.sqlite3")
 DATABASE_URL = "sqlite:///{}".format(DATABASE_NAME)
 
+WARINNG_MESSAGE = """
+> **إن كل ما يصدر من بوت العلامات أو قناة بوت العلامات هو مجرد عمل طلابي وغير رسمي**،
+> **وشعبة الامتحانات غير مسؤولة عنه وقد لا تكون المعلومات صحيحة.**
+> **بما في ذلك العلامات التي يرسلها البوت، أو ملفات ال pdf التي فيها العلامات، كلها غير رسمية.**
+> 
+> **لذلك فإن المرجع الصحيح والموثوق هو فقط موقع العلامات الرسمي، أو ما يصدر من شعبة الامتحانات**
+"""
 
 SPAM_CACHE = {}
 
@@ -31,15 +38,29 @@ def get_session(context: ContextTypes.DEFAULT_TYPE) -> sessionmaker[Session]:
 def convert_makrs_to_md_file(
     subject: SubjectName, marks: List[SubjectMark], bot_username: str
 ) -> bytes:
+    sorted_marks = sorted(marks, key=lambda x: x.total, reverse=True)
+    students_rank = {}
+    rank_cnt, tmp_cnt, last_mark = 0, 0, 9999
+    for mark in sorted_marks:
+        tmp_cnt += 1
+        if last_mark != mark.total:
+            rank_cnt += tmp_cnt
+            last_mark = mark.total
+            tmp_cnt = 0
+
+        students_rank[mark.student_id] = rank_cnt
+
     lst = [
-        "# {}\n\n".format(subject.name),
-        "| الاسم                       | الرقم الجامعي | العملي | النظري | المجموع |\n",
-        "| --------------------------- | ------------- | ------ | ------ | ------- |\n",
+        "# {}\n\n\n\n".format(subject.name),
+        "## تنبيه:\n\n{}\n---\n\n\n\n".format(WARINNG_MESSAGE),
+        "| الترتيب | الاسم  | الرقم الجامعي | العملي | النظري | المجموع |\n",
+        "| ---- | ----- | ----- | ----- | ---- | ----- |\n",
     ]
     passed_cnt = 0
     for mark in marks:
         lst.append(
-            "| {} | {} | {} | {} | {} |\n".format(
+            "| {} | {} | {} | _{}_ | _{}_ | **{}** |\n".format(
+                students_rank[mark.student_id],
                 mark.student.name,
                 mark.student.university_number,
                 mark.amali,
@@ -53,7 +74,8 @@ def convert_makrs_to_md_file(
     lst.append("\n\n# نسبة النجاح: {}\n".format(success_rate))
     lst.append("- العدد الكلي: {}\n".format(len(marks)))
     lst.append("- عدد الناجحين: {}\n\n".format(passed_cnt))
-    lst.append("# By: @{}".format(bot_username))
+    lst.append("# By: [@{}](https://t.me/{})\n\n".format(bot_username, bot_username))
+    lst.append("# قناة البوت: https://t.me/albaath_marks\n---")
     output = "".join(lst)
     with BytesIO() as f:
         f.write(output.encode())

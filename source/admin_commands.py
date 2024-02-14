@@ -247,6 +247,12 @@ async def get_from_db_by_subject(update: Update, context: ContextTypes.DEFAULT_T
 
 @verify_admin
 async def get_all_subjects(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    key_function = lambda x: x.student.name  # noqa: E731
+    is_reversed = False
+    if context.args:
+        key_function = lambda x: x.total  # noqa: E731
+        is_reversed = True
+
     async def get_subjects_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with get_session(context).begin() as session:
             subjects = db_get_all_subjects(session)
@@ -256,7 +262,7 @@ async def get_all_subjects(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             for subject in subjects:
                 marks = get_marks_by_subject(session, subject.id)
-                marks.sort(key=lambda x: x.student.name)
+                marks.sort(key=key_function, reverse=is_reversed)
                 md_bytes = convert_makrs_to_md_file(
                     subject, marks, context.bot.username
                 )
