@@ -96,9 +96,8 @@ async def get_total_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"{len(get_all_users(get_session(context)))}")
 
 
+@verify_admin
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.from_user.id != DEV_ID:
-        return
     await update.message.reply_text("the task has been canceled...", quote=True)
     return ConversationHandler.END
 

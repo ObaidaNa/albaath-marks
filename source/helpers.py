@@ -165,7 +165,8 @@ def parse_marks_to_text(
             output.append("\n📊 _الترتيب_: `{}`".format(rank))
             output.append(escape_markdown("\n-----------\n", version=2))
         if from_website_sign:
-            output.append("\n> *من الموقع* ✔️")
+            output.append("\n> *من الموقع* ✔️\n")
+        output.append("\n> *By*: @albaath\\_marks\\_bot")
     return "".join(output)
 
 

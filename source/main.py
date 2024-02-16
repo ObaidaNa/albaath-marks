@@ -54,6 +54,7 @@ from models import Student
 from queries import (
     get_student,
     get_user_from_db,
+    search_by_name_db,
 )
 from telegram import (
     InlineKeyboardButton,
@@ -157,6 +158,19 @@ async def inline_query_handler(
         )
     ]
     await update.inline_query.answer(results)
+
+
+async def search_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    update_message = update.message if update.message else update.edited_message
+    text_query = update_message.text.strip()
+    results = search_by_name_db(get_session(context), text_query)
+    if not results:
+        await update_message.reply_text(
+            "عذرا، لم يتم إيجاد أي طالب بهذا الاسم، يرجى التأكد والمحاولة مجددا.",
+            quote=True,
+        )
+        return
+    return await responser(update, context, [x.university_number for x in results])
 
 
 async def responser(
@@ -362,7 +376,9 @@ async def send_txt_results(
         elif not output:
             coro = context.bot.send_message(
                 user_id,
-                "لا يوجد علامات لهذا الطالب حاليا....",
+                "لا يوجد علامات للطالب {} ذو الرقم {} حاليا....".format(
+                    student.name, student.university_number
+                ),
                 reply_to_message_id=reply_to_msg,
             )
         elif query:
@@ -425,7 +441,7 @@ async def danger_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "أدخل الرقم بعد كتابة الأمر مثال:\n /danger 3227", quote=True
         )
         return
-    elif validate_input([context.args[0]]):
+    elif not validate_input([context.args[0]]):
         await update.message.reply_text("أدخل أرقام صحيحة فقط", quote=True)
         return
 
@@ -511,7 +527,7 @@ async def lazy_in_range_task(update: Update, context: ContextTypes.DEFAULT_TYPE)
     start_number, end_number, time_offset = map(int, context.args)
     numbers = [i for i in range(start_number, end_number + 1)]
 
-    all_students = []
+    all_students: List[Student] = []
     Session = get_session(context)
     start = time.time()
     with Session() as session:
@@ -543,6 +559,7 @@ async def lazy_in_range_task(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
     start = time.time()
     await update.message.reply_text("generating html file...")
+    all_students.sort(key=lambda x: x.university_number)
     html_filename = html_maker(all_students)
     await update.message.reply_text("done, time taken: {}".format(time.time() - start))
     filename = "marks_" + str(int(random() * 100000)) + ".html"
@@ -610,6 +627,7 @@ def main() -> None:
         r"^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}$",
         re.I,
     )
+    arabic_text_pattern = re.compile(r"[\u0621-\u064A\s]+")
     application.add_handlers(
         [
             CommandHandler(["start", "help"], start),
@@ -636,6 +654,7 @@ def main() -> None:
             CommandHandler("delete_all_students", delete_all_students),
             CommandHandler("admin_help", admin_help_message),
             InlineQueryHandler(inline_query_handler),
+            MessageHandler(filters.Regex(arabic_text_pattern), callback=search_by_name),
             MessageHandler(filters.TEXT & ~filters.COMMAND, callback=responser),
             CallbackQueryHandler(responser, pattern=re.compile(r"^\d{1,5}$")),
             CallbackQueryHandler(cancel_task_handler, pattern=uuid4_pattern),

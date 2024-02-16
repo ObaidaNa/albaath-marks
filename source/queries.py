@@ -143,3 +143,9 @@ def db_delete_all_subjects(session: Session):
 def db_delete_all_students(session: Session):
     stmt = sql_delete(Student)
     session.execute(stmt)
+
+
+@session_wrapper
+def search_by_name_db(session: Session, name: str, limit: int = 5) -> List[Student]:
+    stmt = select(Student).where(Student.name.regexp_match(name)).limit(limit)
+    return session.scalars(stmt).all()
