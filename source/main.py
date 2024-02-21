@@ -627,7 +627,7 @@ def main() -> None:
         r"^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}$",
         re.I,
     )
-    arabic_text_pattern = re.compile(r"[\u0621-\u064A\s]+")
+    arabic_text_pattern = re.compile(r"^[\u0621-\u064A\s]+$")
     application.add_handlers(
         [
             CommandHandler(["start", "help"], start),
