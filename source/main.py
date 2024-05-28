@@ -18,7 +18,6 @@ from admin_commands import (
     admin_help_message,
     block_user,
     cancel_command,
-    clear_spam_cache,
     delete_all_students,
     download_this_file,
     exec_command,
@@ -35,9 +34,10 @@ from admin_commands import (
     unblock_user,
     update_database,
 )
+from concurent_update_processer import ConcurentUpdateProcessor
 from helpers import (
     DEV_ID,
-    SPAM_CACHE,
+    START_MESSAGE,
     check_and_insert_user,
     get_session,
     get_user_id,
@@ -183,15 +183,6 @@ async def responser(
     query = update.callback_query
     user_id = get_user_id(update)
     user = check_and_insert_user(update, context)
-    message = update.message if update.message else update.edited_message
-    if SPAM_CACHE.get(user_id):
-        output = "يرجى الانتظار حتى انتهاء طلبك السابق"
-        if query:
-            await query.answer(output)
-        else:
-            await message.reply_text(output, quote=True)
-        return
-
     recurse_limit = 15 if user.is_whitelisted else 3
     if not numbers:
         if context.args:
@@ -211,24 +202,24 @@ async def responser(
 
     if query or len(numbers) > 10 or html_bl:
         task_uuid = str(uuid4())
-        task = context.application.create_task(
-            doing_the_work(
-                update,
-                context,
-                user_id,
-                numbers,
-                task_uuid,
-                html_bl,
-                caption,
-                user_msg_id=query.message.id if query else None,
-                recurse_limit=recurse_limit,
-            )
-        )
-        context.user_data[task_uuid] = task
         if query:
             await query.answer()
+        task = doing_the_work(
+            update,
+            context,
+            user_id,
+            numbers,
+            task_uuid,
+            html_bl,
+            caption,
+            user_msg_id=query.message.id if query else None,
+            recurse_limit=recurse_limit,
+        )
+
+        context.user_data[task_uuid] = task
+        await task
     else:
-        context.application.create_task(get_stored_marks(update, context, numbers))
+        await get_stored_marks(update, context, numbers)
 
 
 async def get_stored_marks(
@@ -263,9 +254,7 @@ async def get_stored_marks(
 
     if unsaved_numbers:
         task_uuid = str(uuid4())
-        task = context.application.create_task(
-            doing_the_work(update, context, user_id, unsaved_numbers, task_uuid)
-        )
+        task = doing_the_work(update, context, user_id, unsaved_numbers, task_uuid)
         context.user_data[task_uuid] = task
         try:
             await task
@@ -288,7 +277,6 @@ async def doing_the_work(
     user_msg_id: int | None = None,
     recurse_limit=2,
 ):
-    SPAM_CACHE[user_id] = True
     keyboard = InlineKeyboardMarkup(
         [
             [
@@ -345,8 +333,6 @@ async def doing_the_work(
             "يوجد مشكلة حاليا, يرجى إعادة المحاولة",
             reply_to_message_id=user_msg_id,
         )
-    finally:
-        SPAM_CACHE[user_id] = False
 
     try:
         await message.delete()
@@ -462,10 +448,9 @@ async def danger_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(output, ParseMode.MARKDOWN_V2, quote=True)
     user_id = get_user_id(update)
 
-    task = context.application.create_task(
+    context.application.create_task(
         new_update_checker(context, user_id, last_lenght, number)
     )
-    context.user_data["stored_task"] = task
 
 
 async def new_update_checker(
@@ -578,10 +563,8 @@ async def lazy_in_range_task(update: Update, context: ContextTypes.DEFAULT_TYPE)
 @verify_blocked_user
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     check_and_insert_user(update, context)
-    with open("config.json", "r", encoding="utf-8") as f:
-        output = json.load(f)["start"]
     await update.message.reply_text(
-        output, parse_mode=ParseMode.MARKDOWN_V2, disable_web_page_preview=True
+        START_MESSAGE, parse_mode=ParseMode.MARKDOWN_V2, disable_web_page_preview=True
     )
 
 
@@ -614,7 +597,12 @@ def init_config_file():
 
 def main() -> None:
     token = get_token()
-    application = Application.builder().token(token).build()
+    application = (
+        Application.builder()
+        .token(token)
+        .concurrent_updates(ConcurentUpdateProcessor(256, max_updates_per_user=2))
+        .build()
+    )
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("send_message", send_message)],
         states={
@@ -635,7 +623,6 @@ def main() -> None:
             CommandHandler("send_db_backup", send_db_now),
             CommandHandler("danger", danger_mode),
             CommandHandler("cancel_danger", cancel_danger),
-            CommandHandler("clear_spam_cache", clear_spam_cache),
             CommandHandler("in_range", in_range),
             CommandHandler("lazy_in_range", lazy_in_range),
             CommandHandler("exec", exec_command),

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import random
@@ -25,7 +26,10 @@ WARINNG_MESSAGE = """
 > **لذلك فإن المرجع الصحيح والموثوق هو فقط موقع العلامات الرسمي، أو ما يصدر من شعبة الامتحانات**
 """
 
-SPAM_CACHE = {}
+START_MESSAGE = ""
+with open("config.json", "r", encoding="utf-8") as f:
+    START_MESSAGE = json.load(f)["start"]
+
 
 logger = logging.getLogger(__name__)
 

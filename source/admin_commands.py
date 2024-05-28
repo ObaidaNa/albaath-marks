@@ -8,7 +8,6 @@ from uuid import uuid4
 from helpers import (
     DATABASE_NAME,
     DEV_ID,
-    SPAM_CACHE,
     convert_makrs_to_md_file,
     get_session,
     init_database,
@@ -112,12 +111,6 @@ async def send_db_backup(context: ContextTypes.DEFAULT_TYPE):
     os.system("cp {} {}".format(DATABASE_NAME, backup_filename))
     await context.bot.send_document(DEV_ID, backup_filename)
     os.system("rm {}".format(backup_filename))
-
-
-@verify_admin
-async def clear_spam_cache(update: Update, context):
-    SPAM_CACHE.clear()
-    await update.message.reply_text("Cache has been cleared successfully...")
 
 
 @verify_admin
@@ -299,7 +292,6 @@ async def admin_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
     output = (
         "/send_db_backup (sends current db file)",
         "/update_database [reply to .sqlite3 file] (replace db file with sended one)",
-        "/clear_spam_cache (clear the cache if something goes wrong)",
         "/in_range x y (fetch students between x, y)",
         "/lazy_in_range x y z (fetch students that haven't been updated "
         "since z minutes otherwise get results from the db)",
