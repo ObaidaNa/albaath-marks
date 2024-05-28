@@ -300,7 +300,6 @@ async def doing_the_work(
             students_data = [
                 extract_data(session, student_res) for student_res in gathered_results
             ]
-            session.commit()
 
         if len(numbers) <= 5 and not html_bl:
             await send_txt_results(
@@ -465,8 +464,7 @@ async def new_update_checker(
             Session = get_session(context)
             with Session() as session:
                 student = extract_data(session, gathered_results[0])
-                await send_txt_results(None, context, user_id, student)
-                session.commit()
+                await send_txt_results(None, context, user_id, [student])
 
             context.user_data["stored_task"] = None
             break
@@ -527,21 +525,23 @@ async def lazy_in_range_task(update: Update, context: ContextTypes.DEFAULT_TYPE)
             else:
                 unsaved_numbers.append(number)
         session.commit()
-    await update.message.reply_text(
-        "there is {} from {} has been retrived from db, time taken: {}".format(
-            len(all_students), len(numbers), time.time() - start
-        )
-    )
-
-    if unsaved_numbers:
-        start = time.time()
-        responses = await multi_async_request(unsaved_numbers, 15)
-        all_students.extend([extract_data(session, response) for response in responses])
         await update.message.reply_text(
-            "there's {} fethed from the website, time taken: {}".format(
-                len(unsaved_numbers), time.time() - start
+            "there is {} from {} has been retrived from db, time taken: {}".format(
+                len(all_students), len(numbers), time.time() - start
             )
         )
+
+        if unsaved_numbers:
+            start = time.time()
+            responses = await multi_async_request(unsaved_numbers, 15)
+            all_students.extend(
+                [extract_data(session, response) for response in responses]
+            )
+            await update.message.reply_text(
+                "there's {} fethed from the website, time taken: {}".format(
+                    len(unsaved_numbers), time.time() - start
+                )
+            )
     start = time.time()
     await update.message.reply_text("generating html file...")
     all_students.sort(key=lambda x: x.university_number)

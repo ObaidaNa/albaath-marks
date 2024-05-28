@@ -2,7 +2,7 @@ import json
 from typing import List
 
 from lxml import etree
-from models import Student, SubjectMark, session_wrapper
+from models import Student, SubjectMark, SubjectName, session_wrapper
 from queries import (
     get_subject_by_name,
     insert_or_update_mark,
@@ -84,7 +84,7 @@ def extract_data(session: Session, student_res: WebStudentResponse) -> Student:
     if len(rows) <= 2:
         session.refresh(student, ["subjects_marks"])
         return student
-
+    extracted_marks = []
     for i, row in enumerate(rows[2:]):
         columns = row.xpath(".//td")
         subject_name = str(columns[0].text).strip()
@@ -104,7 +104,11 @@ def extract_data(session: Session, student_res: WebStudentResponse) -> Student:
             amali=amali,
             nazari=nazari,
             total=total,
+            subject=SubjectName(
+                id=subject.id, name=subject.name
+            ),  # to make a copy of SubjectName
         )
+        extracted_marks.append(tmp_subject_mark)
 
         insert_or_update_mark(session, tmp_subject_mark)
 
@@ -112,7 +116,8 @@ def extract_data(session: Session, student_res: WebStudentResponse) -> Student:
     session.refresh(student, ["subjects_marks"])
     for mark in student.subjects_marks:
         session.refresh(mark, ["subject"])
-
+    session.close()
+    student.subjects_marks = extracted_marks
     return student
 
 
@@ -172,9 +177,9 @@ def html_maker(students: List[Student]):
                     )
                 base_row.append(cell)
             if i + 1 == len(subjests):
-                base_row.attrib[
-                    "style"
-                ] = "border-bottom-style: solid;"  # add border to the last row in a student rows
+                base_row.attrib["style"] = (
+                    "border-bottom-style: solid;"  # add border to the last row in a student rows
+                )
             table.append(base_row)
             base_row = etree.Element("tr")
     return etree.tostring(root)
