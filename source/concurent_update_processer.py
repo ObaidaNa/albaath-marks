@@ -13,11 +13,19 @@ class ConcurentUpdateProcessor(BaseUpdateProcessor):
     :attr:`telegram.ext.ApplicationBuilder.concurrent_updates` is :obj:`int`.
     """
 
-    __slots__ = ("_events", "_max_updates_per_user")
+    __slots__ = ("_user_semaphore", "_max_updates_per_user")
 
-    def __init__(self, max_concurrent_updates: int, max_updates_per_user: int):
+    def __init__(
+        self,
+        max_concurrent_updates: int,
+        max_updates_per_user: int,
+        max_concurrent_per_user: int = 2,  # accept an update to cancel the first running task
+    ):
         super().__init__(max_concurrent_updates)
-        self._events = defaultdict(lambda: defaultdict(list))
+
+        self._user_semaphore = defaultdict(
+            lambda: asyncio.BoundedSemaphore(max_concurrent_per_user)
+        )
         self._max_updates_per_user = max_updates_per_user
 
     async def do_process_update(
@@ -32,33 +40,19 @@ class ConcurentUpdateProcessor(BaseUpdateProcessor):
             coroutine (:term:`Awaitable`): The coroutine that will be awaited to process the
                 update.
         """
-        if not update.effective_chat or not update.effective_user:
+        if not update.effective_user:
             return await coroutine
         user_id = update.effective_user.id
-        chat_id = update.effective_chat.id
-        user_event_list = self._events[chat_id][user_id]
-        if len(user_event_list) >= self._max_updates_per_user:
+        user_semaphore = self._user_semaphore[user_id]
+        if (
+            user_semaphore._waiters
+            and len(user_semaphore._waiters) >= self._max_updates_per_user
+        ):
             # drop the update
-            del coroutine
             return
-        new_event = asyncio.Event()
-        try:
-            if user_event_list:
-                prev_event = user_event_list[-1]
-                user_event_list.append(new_event)
-                await self.wait_for_event(coroutine, prev_event)
-                user_event_list.pop(0)
 
-            else:
-                user_event_list.append(new_event)
-                await coroutine
-
-            # if there's no one is waiting me
-            # then there's no one will delete me, So I delete my self
-            if len(user_event_list) == 1:
-                user_event_list.pop(0)
-        finally:
-            new_event.set()
+        async with user_semaphore:
+            await coroutine
 
     async def initialize(self) -> None:
         """Does nothing."""

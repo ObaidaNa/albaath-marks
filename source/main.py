@@ -38,6 +38,7 @@ from concurent_update_processer import ConcurentUpdateProcessor
 from helpers import (
     DEV_ID,
     START_MESSAGE,
+    acquire_task_or_drop,
     check_and_insert_user,
     get_session,
     get_user_id,
@@ -204,7 +205,7 @@ async def responser(
         task_uuid = str(uuid4())
         if query:
             await query.answer()
-        task = doing_the_work(
+        coro = doing_the_work(
             update,
             context,
             user_id,
@@ -215,6 +216,7 @@ async def responser(
             user_msg_id=query.message.id if query else None,
             recurse_limit=recurse_limit,
         )
+        task = asyncio.Task(coro)
 
         context.user_data[task_uuid] = task
         await task
@@ -254,7 +256,9 @@ async def get_stored_marks(
 
     if unsaved_numbers:
         task_uuid = str(uuid4())
-        task = doing_the_work(update, context, user_id, unsaved_numbers, task_uuid)
+        task = asyncio.Task(
+            doing_the_work(update, context, user_id, unsaved_numbers, task_uuid)
+        )
         context.user_data[task_uuid] = task
         try:
             await task
@@ -266,6 +270,7 @@ async def get_stored_marks(
         await output_coro
 
 
+@acquire_task_or_drop
 async def doing_the_work(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -600,7 +605,7 @@ def main() -> None:
     application = (
         Application.builder()
         .token(token)
-        .concurrent_updates(ConcurentUpdateProcessor(256, max_updates_per_user=2))
+        .concurrent_updates(ConcurentUpdateProcessor(256, max_updates_per_user=5))
         .build()
     )
     conv_handler = ConversationHandler(

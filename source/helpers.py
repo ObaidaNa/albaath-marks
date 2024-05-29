@@ -185,3 +185,18 @@ def get_user_id(update: Update) -> Optional[int]:
         user_id = update.edited_message.from_user.id
 
     return user_id
+
+
+def acquire_task_or_drop(func):
+    async def inner(update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        flag_name = "is_busy"
+        if context.user_data.get(flag_name):
+            return  # drop the update
+        try:
+            context.user_data[flag_name] = True
+            ret = await func(update, context, *args, **kwargs)
+        finally:
+            context.user_data[flag_name] = False
+        return ret
+
+    return inner
