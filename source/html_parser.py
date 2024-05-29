@@ -2,7 +2,7 @@ import json
 from typing import List
 
 from lxml import etree
-from models import Student, SubjectMark, SubjectName, session_wrapper
+from models import Student, SubjectMark, session_wrapper
 from queries import (
     get_subject_by_name,
     insert_or_update_mark,
@@ -93,7 +93,7 @@ def extract_data(session: Session, student_res: WebStudentResponse) -> Student:
         if not subject:
             subject = insert_subject(session, subject_name)
             session.commit()
-
+        session.expunge(subject)
         amali = int(columns[1].text) if str(columns[1].text).isdigit() else 0
         nazari = int(columns[2].text) if str(columns[2].text).isdigit() else 0
         total = int(columns[3].text) if str(columns[3].text).isdigit() else 0
@@ -104,9 +104,7 @@ def extract_data(session: Session, student_res: WebStudentResponse) -> Student:
             amali=amali,
             nazari=nazari,
             total=total,
-            subject=SubjectName(
-                id=subject.id, name=subject.name
-            ),  # to make a copy of SubjectName
+            subject=subject,
         )
         extracted_marks.append(tmp_subject_mark)
 
@@ -114,10 +112,8 @@ def extract_data(session: Session, student_res: WebStudentResponse) -> Student:
 
     session.commit()
     session.refresh(student, ["subjects_marks"])
-    for mark in student.subjects_marks:
-        session.refresh(mark, ["subject"])
-    session.close()
-    student.subjects_marks = extracted_marks
+    session.expunge(student)
+    student.subjects_marks = extracted_marks  # keep only extracted marks
     return student
 
 

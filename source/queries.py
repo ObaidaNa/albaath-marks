@@ -102,7 +102,7 @@ def insert_or_update_mark(session: Session, new_marks: SubjectMark):
     subject_mark.nazari = new_marks.nazari
     subject_mark.total = new_marks.total
     subject_mark.last_update = func.now()
-
+    session.refresh(subject_mark, ["subject"])
     return subject_mark
 
 
