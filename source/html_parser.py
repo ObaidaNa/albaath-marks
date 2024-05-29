@@ -82,8 +82,8 @@ def extract_data(session: Session, student_res: WebStudentResponse) -> Student:
     session.commit()
 
     if len(rows) <= 2:
-        session.refresh(student, ["subjects_marks"])
-        return student
+        return tmp_student
+
     extracted_marks = []
     for i, row in enumerate(rows[2:]):
         columns = row.xpath(".//td")

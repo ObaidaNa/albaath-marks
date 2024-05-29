@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from admin_commands import (
     add_new_admin,
+    add_new_season,
     add_to_white_list,
     admin_help_message,
     block_user,
@@ -51,8 +52,11 @@ from html_parser import (
     get_rows_lenght,
     html_maker,
 )
-from models import Student
+from models import Season, Student
 from queries import (
+    get_all_season,
+    get_marks_by_season,
+    get_season_by_id,
     get_student,
     get_user_from_db,
     search_by_name_db,
@@ -225,15 +229,40 @@ async def responser(
 
 
 async def get_stored_marks(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, numbers: List[int]
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    numbers: List[int],
+    season: Optional[Season] = None,
 ):
     user_id = get_user_id(update)
-    update_message = update.message if update.message else update.edited_message
+    chat_id = update.effective_chat.id
+    query = update.callback_query
     outputs_coroutines = []
     unsaved_numbers = []
-    with get_session(context).begin() as session:
-        for number in numbers:
-            student = get_student(session, int(number))
+    fetched_students_from_db = []
+
+    Session = get_session(context)
+
+    with Session.begin() as session:
+        fetched_students_from_db = [
+            (get_student(session, int(number)), number) for number in numbers
+        ]
+        all_seasons = get_all_season(session)
+        if not all_seasons:
+            season = Season(
+                season_title="كل العلامات",
+                from_date=datetime(2000, 1, 1),
+                to_date=datetime(3000, 1, 1),
+            )
+        elif not season:
+            season = all_seasons[0]
+
+    for indx, element in enumerate(all_seasons):
+        if element.id == season.id:
+            all_seasons.pop(indx)
+            break
+    with Session() as session:
+        for student, number in fetched_students_from_db:
             if student and len(student.subjects_marks):
                 keyboard = InlineKeyboardMarkup(
                     [
@@ -242,14 +271,35 @@ async def get_stored_marks(
                                 "🌐 جلب العلامات من الموقع",
                                 callback_data=str(student.university_number),
                             )
+                        ],
+                    ]
+                    + [
+                        [
+                            InlineKeyboardButton(
+                                x.season_title, callback_data=f"{number} {x.id}"
+                            )
                         ]
+                        for x in all_seasons
                     ]
                 )
-                message = update_message.reply_text(
-                    parse_marks_to_text(student, context),
-                    ParseMode.MARKDOWN_V2,
-                    reply_markup=keyboard,
+                student.subjects_marks = get_marks_by_season(
+                    session, season, student.id
                 )
+                season_title = f"📆 *{escape_markdown(season.season_title, 2)}*\n\n\n"
+                if not query:
+                    message = context.bot.send_message(
+                        chat_id,
+                        season_title + parse_marks_to_text(student, context),
+                        ParseMode.MARKDOWN_V2,
+                        reply_markup=keyboard,
+                    )
+                else:  # if it's a season query
+                    outputs_coroutines.append(query.answer())
+                    message = query.edit_message_text(
+                        season_title + parse_marks_to_text(student, context),
+                        ParseMode.MARKDOWN_V2,
+                        reply_markup=keyboard,
+                    )
                 outputs_coroutines.append(message)
             else:
                 unsaved_numbers.append(number)
@@ -268,6 +318,13 @@ async def get_stored_marks(
         if i and i % 5 == 0:
             await asyncio.sleep(1)
         await output_coro
+
+
+async def send_marks_by_season(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    student_number, season_id = list(map(int, query.data.split()))
+    season = get_season_by_id(get_session(context), season_id)
+    return await get_stored_marks(update, context, [student_number], season)
 
 
 @acquire_task_or_drop
@@ -356,7 +413,7 @@ async def send_txt_results(
     outputs_coroutines = []
 
     for student in students:
-        output = parse_marks_to_text(student, context, True)
+        output = parse_marks_to_text(student, context, from_website_sign=True)
         if student.name == "NULL":
             coro = context.bot.send_message(
                 user_id,
@@ -645,10 +702,14 @@ def main() -> None:
             CommandHandler("get_all_subjects", get_all_subjects),
             CommandHandler("delete_all_students", delete_all_students),
             CommandHandler("admin_help", admin_help_message),
+            CommandHandler("add_season", add_new_season),
             InlineQueryHandler(inline_query_handler),
             MessageHandler(filters.Regex(arabic_text_pattern), callback=search_by_name),
             MessageHandler(filters.TEXT & ~filters.COMMAND, callback=responser),
             CallbackQueryHandler(responser, pattern=re.compile(r"^\d{1,5}$")),
+            CallbackQueryHandler(
+                send_marks_by_season, pattern=re.compile(r"^\d{1,5} \d{1,3}$")
+            ),
             CallbackQueryHandler(cancel_task_handler, pattern=uuid4_pattern),
         ]
     )

@@ -12,6 +12,7 @@ from helpers import (
     get_session,
     init_database,
 )
+from models import Season
 from queries import (
     db_delete_all_marks,
     db_delete_all_students,
@@ -309,5 +310,25 @@ async def admin_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "/download_this_file [reply to file] (it will download it to it's local storage)",
         "/get_all_subjects (get all stored marks of all subjects, in md format)",
         "/admin_help (show this message)",
+        "/add_season [season title] [from_date] [to_date] (should be splitted by '/') "
+        "example:\n/add_season 2024 - season 2/2024-06-01 12:00:00/2024-10-01 01:00:00",
     )
     await update.message.reply_text("\n\n".join(output))
+
+
+@verify_bot_owner
+async def add_new_season(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("wrong entry!")
+        return
+    args = " ".join(context.args)
+
+    season_title, from_date, to_date = args.split("/")
+    dt_format = "%Y-%m-%d %H:%M:%S"
+    from_date = datetime.strptime(from_date, dt_format)
+    to_date = datetime.strptime(to_date, dt_format)
+    season = Season(season_title=season_title, from_date=from_date, to_date=to_date)
+    Session = get_session(context)
+    with Session.begin() as session:
+        session.add(season)
+    await update.message.reply_text("Season added successfully...")

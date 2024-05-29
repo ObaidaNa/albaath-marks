@@ -83,8 +83,19 @@ class SubjectMark(Base):
     nazari: Mapped[int] = mapped_column(default=0)
     amali: Mapped[int] = mapped_column(default=0)
     total: Mapped[int] = mapped_column(default=0)
+    last_update: Mapped[datetime] = mapped_column(
+        DateTime(timezone=False), default=func.now()
+    )
 
     student: Mapped[Student] = relationship(back_populates="subjects_marks")
     subject: Mapped[SubjectName] = relationship(
         back_populates="subject_marks", lazy="selectin"
     )
+
+
+class Season(Base):
+    __tablename__ = "seasons"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_title: Mapped[str] = mapped_column(String(length=255), nullable=True)
+    from_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    to_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
