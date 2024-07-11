@@ -36,9 +36,8 @@ from admin_commands import (
     update_database,
 )
 from concurent_update_processer import ConcurentUpdateProcessor
+from constants import DANGER_TIME_DURATION, DEV_ID, FILE_CAPTION, START_MESSAGE
 from helpers import (
-    DEV_ID,
-    START_MESSAGE,
     acquire_task_or_drop,
     check_and_insert_user,
     get_session,
@@ -90,8 +89,6 @@ from web_scrapper import multi_async_request
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-
-DANGER_TIME_DURATION = 60
 
 
 logger = logging.getLogger(__name__)
@@ -387,8 +384,7 @@ async def doing_the_work(
             html_filename = html_maker(students_data)
             filename = "marks_" + str(int(random() * 100000)) + ".html"
             if not caption:
-                with open("config.json", "r", encoding="utf-8") as f:
-                    caption = json.load(f).get("caption")
+                caption = FILE_CAPTION
             caption += "\n{} \\- {}".format(numbers[0], numbers[-1])
             await context.bot.send_document(
                 user_id,
@@ -656,8 +652,7 @@ async def lazy_in_range_task(update: Update, context: ContextTypes.DEFAULT_TYPE)
     html_filename = html_maker(all_students)
     await update.message.reply_text("done, time taken: {}".format(time.time() - start))
     filename = "marks_" + str(int(random() * 100000)) + ".html"
-    with open("config.json", "r", encoding="utf-8") as f:
-        caption = json.load(f).get("caption")
+    caption = FILE_CAPTION
     caption += "\n{} \\- {}".format(start_number, end_number)
     await context.bot.send_document(
         user_id,
@@ -677,6 +672,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 def get_token() -> str:
+    # Priority to environment variables
     if os.getenv("BOT_TOKEN"):
         return os.getenv("BOT_TOKEN")
     filename = "config.json"
