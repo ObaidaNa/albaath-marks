@@ -5,8 +5,9 @@ import random
 from io import BytesIO
 from typing import List, Optional
 
-from models import Base, BotUser, Student, SubjectMark, SubjectName
+from models import Base, BotUser, Season, SubjectMark, SubjectName
 from queries import get_student_rank_by_subject, get_user_from_db, insert_user, is_exist
+from schemas import StudentCreate, StudentSchema
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram import Update
@@ -138,9 +139,7 @@ def check_and_insert_user(
     return user
 
 
-def parse_marks_to_text(
-    student: Student, context: ContextTypes.DEFAULT_TYPE, from_website_sign=False
-) -> str:
+def parse_marks_to_text_from_website(student: StudentCreate) -> str:
     marks = student.subjects_marks
     marks.sort(key=lambda x: x.subject.name)
     books = ["📕", "📗", "📘", "📙"]
@@ -153,6 +152,37 @@ def parse_marks_to_text(
         escape_markdown(student.name, version=2)
         + f" \- {student.university_number} *:\n\n",
     ]
+    for i, subject in enumerate(marks):
+        output.append(f"{books[i % len(books)]} _*")
+        output.append(escape_markdown(f"({subject.subject.name})", version=2) + "*_\n")
+        output.append(f"_{subject.amali}_ ")
+        output.append(f"_{subject.nazari}_ ")
+        output.append(f"*{subject.total}* ")
+        if str(subject.total).isnumeric():
+            output.append(" ✅" if int(subject.total) >= 60 else " ❌")
+        output.append(escape_markdown("\n-----------\n", version=2))
+
+    output.append("\n> *من الموقع* ✔️\n")
+    output.append("\n> *By*: @albaath\\_marks\\_bot")
+    return "".join(output)
+
+
+def parse_marks_to_text_from_db(
+    student: StudentSchema, context: ContextTypes.DEFAULT_TYPE, season: Season
+) -> str:
+    marks = student.subjects_marks
+    marks.sort(key=lambda x: x.subject.name)
+    books = ["📕", "📗", "📘", "📙"]
+    random.shuffle(books)
+    output = [
+        "👤 *",
+        escape_markdown(student.name, version=2)
+        + f" \- {student.university_number} *:\n\n",
+    ]
+
+    if len(marks) == 0:
+        return "".join([*output, "\n📭 لا يوجد علامات حاليا"])
+
     Session = get_session(context)
     with Session.begin() as session:
         for i, subject in enumerate(marks):
@@ -165,11 +195,10 @@ def parse_marks_to_text(
             output.append(f"*{subject.total}* ")
             if str(subject.total).isnumeric():
                 output.append(" ✅" if int(subject.total) >= 60 else " ❌")
-            rank = get_student_rank_by_subject(session, subject)
+            rank = get_student_rank_by_subject(session, subject, season)
             output.append("\n📊 _الترتيب_: `{}`".format(rank))
             output.append(escape_markdown("\n-----------\n", version=2))
-        if from_website_sign:
-            output.append("\n> *من الموقع* ✔️\n")
+
         output.append("\n> *By*: @albaath\\_marks\\_bot")
     return "".join(output)
 

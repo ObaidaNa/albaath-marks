@@ -6,7 +6,7 @@ import os
 import re
 import time
 import traceback
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from random import random
 from typing import List, Optional
@@ -44,7 +44,8 @@ from helpers import (
     get_session,
     get_user_id,
     init_database,
-    parse_marks_to_text,
+    parse_marks_to_text_from_db,
+    parse_marks_to_text_from_website,
     verify_blocked_user,
 )
 from html_parser import (
@@ -52,15 +53,19 @@ from html_parser import (
     get_rows_lenght,
     html_maker,
 )
-from models import Season, Student
+from models import Season
 from queries import (
     get_all_season,
     get_marks_by_season,
     get_season_by_id,
     get_student,
+    get_students_set,
+    get_students_within_range,
     get_user_from_db,
     search_by_name_db,
+    update_or_insert_students_data,
 )
+from schemas import StudentSchema, SubjectMarkSchema
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -138,9 +143,15 @@ async def inline_query_handler(
     if not validate_input([number]):
         return
     with get_session(context).begin() as session:
+        seasons = get_all_season(session)
         student = get_student(session, int(number))
         if student:
-            output = parse_marks_to_text(student, context)
+            marks_within_session = get_marks_by_season(session, seasons[0], student.id)
+            student_data = StudentSchema.model_validate(student)
+            student_data.subjects_marks = [
+                SubjectMarkSchema.model_validate(mark) for mark in marks_within_session
+            ]
+            output = parse_marks_to_text_from_db(student_data, context, seasons[0])
             output += (
                 "\n\n⚠️ *هذه العلامات مخزنة مسبقا على البوت وقد لا تكون محدّثة، "
                 "للحصول على العلامات من الموقع يرجى إرسال الرقم إلى البوت مباشرة*:\n"
@@ -204,6 +215,7 @@ async def responser(
         isvalid = validate_input(numbers)
         if not isvalid:
             return await update.message.reply_text("أدخل أرقام صحيحة ...")
+        numbers = list(map(int, numbers))
 
     if query or len(numbers) > 10 or html_bl:
         task_uuid = str(uuid4())
@@ -243,67 +255,64 @@ async def get_stored_marks(
 
     Session = get_session(context)
 
-    with Session.begin() as session:
-        fetched_students_from_db = [
-            (get_student(session, int(number)), number) for number in numbers
-        ]
+    with Session() as session:
         all_seasons = get_all_season(session)
-        if not all_seasons:
-            season = Season(
-                season_title="كل العلامات",
-                from_date=datetime(2000, 1, 1),
-                to_date=datetime(3000, 1, 1),
-            )
-        elif not season:
+        if not season:
             season = all_seasons[0]
+    with Session() as session:
+        fetched_students_from_db = [
+            StudentSchema.model_validate(x)
+            for x in get_students_set(session, numbers, season)
+        ]
 
     for indx, element in enumerate(all_seasons):
         if element.id == season.id:
             all_seasons.pop(indx)
             break
-    with Session() as session:
-        for student, number in fetched_students_from_db:
-            if student and len(student.subjects_marks):
-                keyboard = InlineKeyboardMarkup(
-                    [
-                        [
-                            InlineKeyboardButton(
-                                "🌐 جلب العلامات من الموقع",
-                                callback_data=str(student.university_number),
-                            )
-                        ],
-                    ]
-                    + [
-                        [
-                            InlineKeyboardButton(
-                                x.season_title, callback_data=f"{number} {x.id}"
-                            )
-                        ]
-                        for x in all_seasons
-                    ]
-                )
-                student.subjects_marks = get_marks_by_season(
-                    session, season, student.id
-                )
-                season_title = f"📆 *{escape_markdown(season.season_title, 2)}*\n\n\n"
-                if not query:
-                    message = context.bot.send_message(
-                        chat_id,
-                        season_title + parse_marks_to_text(student, context),
-                        ParseMode.MARKDOWN_V2,
-                        reply_markup=keyboard,
-                    )
-                else:  # if it's a season query
-                    outputs_coroutines.append(query.answer())
-                    message = query.edit_message_text(
-                        season_title + parse_marks_to_text(student, context),
-                        ParseMode.MARKDOWN_V2,
-                        reply_markup=keyboard,
-                    )
-                outputs_coroutines.append(message)
-            else:
-                unsaved_numbers.append(number)
 
+    for student in fetched_students_from_db:
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🌐 جلب العلامات من الموقع",
+                        callback_data=str(student.university_number),
+                    )
+                ],
+            ]
+            + [
+                [
+                    InlineKeyboardButton(
+                        x.season_title,
+                        callback_data=f"{student.university_number} {x.id}",
+                    )
+                ]
+                for x in all_seasons
+            ]
+        )
+        season_title = f"📆 *{escape_markdown(season.season_title, 2)}*\n\n\n"
+        marks_output = season_title + parse_marks_to_text_from_db(
+            StudentSchema.model_validate(student), context, season
+        )
+        if not query:
+            message = context.bot.send_message(
+                chat_id,
+                marks_output,
+                ParseMode.MARKDOWN_V2,
+                reply_markup=keyboard,
+            )
+        else:  # if it's a season query
+            outputs_coroutines.append(query.answer())
+            message = query.edit_message_text(
+                marks_output,
+                ParseMode.MARKDOWN_V2,
+                reply_markup=keyboard,
+            )
+        outputs_coroutines.append(message)
+
+    unsaved_numbers = set(numbers) - {
+        x.university_number for x in fetched_students_from_db
+    }
     if unsaved_numbers:
         task_uuid = str(uuid4())
         task = asyncio.Task(
@@ -323,7 +332,11 @@ async def get_stored_marks(
 async def send_marks_by_season(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     student_number, season_id = list(map(int, query.data.split()))
-    season = get_season_by_id(get_session(context), season_id)
+    MySession = get_session(context)
+    if season_id == 0:
+        season = get_all_season(MySession)[0]
+    else:
+        season = get_season_by_id(get_session(context), season_id)
     return await get_stored_marks(update, context, [student_number], season)
 
 
@@ -339,6 +352,7 @@ async def doing_the_work(
     user_msg_id: int | None = None,
     recurse_limit=2,
 ):
+    students_data = None
     keyboard = InlineKeyboardMarkup(
         [
             [
@@ -357,11 +371,7 @@ async def doing_the_work(
     )
     try:
         gathered_results = await multi_async_request(numbers, recurse_limit)
-        Session = get_session(context)
-        with Session() as session:
-            students_data = [
-                extract_data(session, student_res) for student_res in gathered_results
-            ]
+        students_data = [extract_data(x) for x in gathered_results]
 
         if len(numbers) <= 5 and not html_bl:
             await send_txt_results(
@@ -369,6 +379,7 @@ async def doing_the_work(
                 context,
                 user_id,
                 students_data,
+                is_from_website=True,
                 reply_to_msg=user_msg_id,
             )
         else:
@@ -400,20 +411,30 @@ async def doing_the_work(
         del context.user_data[task_uuid]
     except Exception:
         pass
+    if students_data is not None:
+        Session = get_session(context)
+        with Session() as session:
+            update_or_insert_students_data(session, students_data)
+            # save student data
 
 
 async def send_txt_results(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     user_id: int,
-    students: List[Student],
+    students: List[StudentSchema],
+    is_from_website: bool,
     reply_to_msg: int | None = None,
 ):
     query = update.callback_query if update else None
     outputs_coroutines = []
+    seasons = get_all_season(get_session(context))
 
     for student in students:
-        output = parse_marks_to_text(student, context, from_website_sign=True)
+        if is_from_website:
+            output = parse_marks_to_text_from_website(student)
+        else:
+            output = parse_marks_to_text_from_db(student, context, seasons[0])
         if student.name == "NULL":
             coro = context.bot.send_message(
                 user_id,
@@ -428,12 +449,29 @@ async def send_txt_results(
                 ),
                 reply_to_message_id=reply_to_msg,
             )
-        elif query:
-            coro = query.edit_message_text(output, parse_mode=ParseMode.MARKDOWN_V2)
         else:
-            coro = context.bot.send_message(
-                user_id, output, parse_mode=ParseMode.MARKDOWN_V2
-            )
+            send_msg_kwargs = {
+                "text": output,
+                "parse_mode": ParseMode.MARKDOWN_V2,
+            }
+            if is_from_website:
+                send_msg_kwargs["reply_markup"] = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "إظهار الترتيب",
+                                callback_data="{} {}".format(
+                                    student.university_number,
+                                    0,  # zero means get last season
+                                ),
+                            )
+                        ]
+                    ]
+                )
+            if query:
+                coro = query.edit_message_text(**send_msg_kwargs)
+            else:
+                coro = context.bot.send_message(chat_id=user_id, **send_msg_kwargs)
         outputs_coroutines.append(coro)
 
     for i, coro in enumerate(outputs_coroutines):
@@ -568,51 +606,59 @@ async def lazy_in_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def lazy_in_range_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = get_user_id(update)
-    unsaved_numbers = []
     start_number, end_number, time_offset = map(int, context.args)
-    numbers = [i for i in range(start_number, end_number + 1)]
-
-    all_students: List[Student] = []
+    all_numbers = {i for i in range(start_number, end_number + 1)}
     Session = get_session(context)
-    start = time.time()
+    first_start = time.time()
+    after_date = datetime.now(UTC) - timedelta(minutes=time_offset)
+
     with Session() as session:
-        for number in numbers:
-            student = get_student(session, int(number))
-            if student and (
-                datetime.utcnow() - student.last_update
-                <= timedelta(minutes=time_offset)
-            ):
-                session.refresh(student, ["subjects_marks"])
-                all_students.append(student)
-            else:
-                unsaved_numbers.append(number)
-        session.commit()
+        season = get_all_season(session)[0]
+        updated_students = get_students_within_range(
+            session, start_number, end_number, after_date, season
+        )
+
         await update.message.reply_text(
             "there is {} from {} has been retrived from db, time taken: {}".format(
-                len(all_students), len(numbers), time.time() - start
+                len(updated_students), len(all_numbers), time.time() - first_start
+            )
+        )
+    unsaved_numbers = all_numbers - {x.university_number for x in updated_students}
+    if unsaved_numbers:
+        start = time.time()
+        responses = await multi_async_request(unsaved_numbers, 15)
+        all_students = [extract_data(x) for x in responses]
+        with Session() as session:
+            update_or_insert_students_data(session, all_students)  ####
+        await update.message.reply_text(
+            "there's {} fethed from the website, time taken: {}".format(
+                len(unsaved_numbers), time.time() - start
             )
         )
 
-        if unsaved_numbers:
-            start = time.time()
-            responses = await multi_async_request(unsaved_numbers, 15)
-            all_students.extend(
-                [extract_data(session, response) for response in responses]
+    after_date = datetime.now(UTC) - timedelta(
+        minutes=time_offset, seconds=(time.time() - first_start) + 1
+    )
+    with Session() as session:
+        start = time.time()
+        # refetch data after updates and inserts
+        all_students = [
+            x
+            for x in get_students_within_range(
+                session,
+                start_number,
+                end_number,
+                after_date,
+                season,
             )
-            await update.message.reply_text(
-                "there's {} fethed from the website, time taken: {}".format(
-                    len(unsaved_numbers), time.time() - start
-                )
-            )
-    start = time.time()
+        ]
     await update.message.reply_text("generating html file...")
-    all_students.sort(key=lambda x: x.university_number)
     html_filename = html_maker(all_students)
     await update.message.reply_text("done, time taken: {}".format(time.time() - start))
     filename = "marks_" + str(int(random() * 100000)) + ".html"
     with open("config.json", "r", encoding="utf-8") as f:
         caption = json.load(f).get("caption")
-    caption += "\n{} \\- {}".format(numbers[0], numbers[-1])
+    caption += "\n{} \\- {}".format(start_number, end_number)
     await context.bot.send_document(
         user_id,
         html_filename,

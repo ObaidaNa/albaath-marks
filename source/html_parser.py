@@ -2,14 +2,7 @@ import json
 from typing import List
 
 from lxml import etree
-from models import Student, SubjectMark, session_wrapper
-from queries import (
-    get_subject_by_name,
-    insert_or_update_mark,
-    insert_or_update_student,
-    insert_subject,
-)
-from sqlalchemy.orm import Session
+from schemas import StudentCreate, SubjectMarkCreateSchema, SubjectNameCreateSchema
 from web_scrapper import WebStudentResponse
 
 
@@ -64,57 +57,35 @@ def initialize_table():
     return root
 
 
-@session_wrapper
-def extract_data(session: Session, student_res: WebStudentResponse) -> Student:
+def extract_data(student_res: WebStudentResponse) -> StudentCreate:
     parser = etree.HTMLParser(encoding="utf-8")
     doc = etree.fromstring(student_res.html_page.decode("utf-8"), parser)
     rows = doc.xpath("//table//tr")
-    tmp_student = Student()
 
-    tmp_student.university_number = student_res.student_number
+    student_name = str(rows[0].xpath(".//td")[0].text)
+    if student_name == "None":
+        student_name = "NULL"
 
-    tmp_student.name = str(rows[0].xpath(".//td")[0].text)
-    if len(rows) <= 2 and tmp_student.name == "None":
-        tmp_student.name = "NULL"
-
-    student = insert_or_update_student(session, tmp_student, True)
-
-    session.commit()
+    student_schema = StudentCreate(
+        name=student_name, university_number=student_res.student_number
+    )
 
     if len(rows) <= 2:
-        return tmp_student
+        return student_schema
 
-    extracted_marks = []
     for i, row in enumerate(rows[2:]):
         columns = row.xpath(".//td")
         subject_name = str(columns[0].text).strip()
-
-        subject = get_subject_by_name(session, subject_name)
-        if not subject:
-            subject = insert_subject(session, subject_name)
-            session.commit()
-        session.expunge(subject)
+        subject_schema = SubjectNameCreateSchema(name=subject_name)
         amali = int(columns[1].text) if str(columns[1].text).isdigit() else 0
         nazari = int(columns[2].text) if str(columns[2].text).isdigit() else 0
         total = int(columns[3].text) if str(columns[3].text).isdigit() else 0
-
-        tmp_subject_mark = SubjectMark(
-            student_id=student.id,
-            subject_id=subject.id,
-            amali=amali,
-            nazari=nazari,
-            total=total,
-            subject=subject,
+        subject_mark_schema = SubjectMarkCreateSchema(
+            nazari=nazari, amali=amali, total=total, subject=subject_schema
         )
-        extracted_marks.append(tmp_subject_mark)
+        student_schema.subjects_marks.append(subject_mark_schema)
 
-        insert_or_update_mark(session, tmp_subject_mark)
-
-    session.commit()
-    session.refresh(student, ["subjects_marks"])
-    session.expunge(student)
-    student.subjects_marks = extracted_marks  # keep only extracted marks
-    return student
+    return student_schema
 
 
 def get_rows_lenght(html_content: bytes) -> int:
@@ -124,7 +95,7 @@ def get_rows_lenght(html_content: bytes) -> int:
     return len(rows)
 
 
-def html_maker(students: List[Student]):
+def html_maker(students: List[StudentCreate]):
     root = initialize_table()
     table = root.xpath("//table")[0]
     cnt = 0

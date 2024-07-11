@@ -1,3 +1,4 @@
+import functools
 from datetime import datetime
 from typing import List, Optional, Union
 
@@ -20,6 +21,7 @@ from sqlalchemy.orm import (
 
 
 def session_wrapper(func):
+    @functools.wraps(func)
     def inner_func(
         my_session: Union[sessionmaker[Session], SessionTransaction, Session],
         *args,
@@ -57,10 +59,12 @@ class BotUser(Base):
 class Student(Base):
     __tablename__ = "students"
     id: Mapped[int] = mapped_column(primary_key=True)
-    university_number: Mapped[int] = mapped_column(nullable=False)
+    university_number: Mapped[int] = mapped_column(
+        nullable=False, unique=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(length=255))
     last_update: Mapped[datetime] = mapped_column(
-        DateTime(timezone=False), default=func.now()
+        DateTime(timezone=False), default=func.now(), onupdate=func.now()
     )
 
     subjects_marks: Mapped[List["SubjectMark"]] = relationship(back_populates="student")
@@ -84,7 +88,7 @@ class SubjectMark(Base):
     amali: Mapped[int] = mapped_column(default=0)
     total: Mapped[int] = mapped_column(default=0)
     last_update: Mapped[datetime] = mapped_column(
-        DateTime(timezone=False), default=func.now()
+        DateTime(timezone=False), default=func.now(), onupdate=func.now
     )
 
     student: Mapped[Student] = relationship(back_populates="subjects_marks")
