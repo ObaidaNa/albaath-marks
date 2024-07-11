@@ -17,6 +17,7 @@ from queries import (
     db_delete_all_students,
     db_delete_all_subjects,
     db_get_all_subjects,
+    get_all_season,
     get_all_users,
     get_marks_by_subject,
     get_student,
@@ -230,8 +231,8 @@ async def get_from_db_by_subject(update: Update, context: ContextTypes.DEFAULT_T
                 parse_mode=ParseMode.MARKDOWN_V2,
             )
             return
-
-        marks = get_marks_by_subject(session, subject.id)
+        season = get_all_season(session)[0]
+        marks = get_marks_by_subject(session, subject.id, season)
         marks.sort(key=lambda x: x.student.name)
     md_bytes = convert_makrs_to_md_file(subject, marks, context.bot.username)
     await context.bot.send_document(DEV_ID, md_bytes, filename=f"{subject.name}.txt")
@@ -252,8 +253,11 @@ async def get_all_subjects(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "\n".join(f"`{subject.name}`" for subject in subjects),
                 parse_mode=ParseMode.MARKDOWN_V2,
             )
+            season = get_all_season(session)[0]
             for subject in subjects:
-                marks = get_marks_by_subject(session, subject.id)
+                marks = get_marks_by_subject(session, subject.id, season)
+                if not marks:
+                    continue
                 marks.sort(key=key_function, reverse=is_reversed)
                 md_bytes = convert_makrs_to_md_file(
                     subject, marks, context.bot.username

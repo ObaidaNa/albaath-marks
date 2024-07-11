@@ -49,11 +49,14 @@ def get_subject_by_name(session: Session, name: str) -> Optional[SubjectName]:
 
 
 @session_wrapper
-def get_marks_by_subject(session: Session, subject_id: int) -> List[SubjectMark]:
+def get_marks_by_subject(
+    session: Session, subject_id: int, season: Season
+) -> List[SubjectMark]:
     stmt = (
         select(SubjectMark)
         .join(Student)
         .where(SubjectMark.subject_id == subject_id)
+        .where(SubjectMark.last_update.between(season.from_date, season.to_date))
         .order_by(Student.name)
     )
     return session.scalars(stmt).all()
