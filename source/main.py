@@ -543,9 +543,10 @@ async def danger_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(output, ParseMode.MARKDOWN_V2, quote=True)
     user_id = get_user_id(update)
 
-    context.application.create_task(
+    task = context.application.create_task(
         new_update_checker(context, user_id, last_lenght, number)
     )
+    context.user_data["stored_task"] = task
 
 
 async def new_update_checker(
