@@ -557,10 +557,8 @@ async def new_update_checker(
         await asyncio.sleep(10)
         gathered_results = await multi_async_request([number])
         if last_length != get_rows_lenght(gathered_results[0].html_page):
-            Session = get_session(context)
-            with Session() as session:
-                student = extract_data(session, gathered_results[0])
-                await send_txt_results(None, context, user_id, [student])
+            student = extract_data(gathered_results[0])
+            await send_txt_results(None, context, user_id, [student])
 
             context.user_data["stored_task"] = None
             break
