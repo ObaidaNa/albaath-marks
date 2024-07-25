@@ -1,6 +1,7 @@
-import json
 from typing import List
 
+from constants import HTML_SIGN
+from helpers import is_passed
 from lxml import etree
 from schemas import StudentCreate, SubjectMarkCreateSchema, SubjectNameCreateSchema
 from web_scrapper import WebStudentResponse
@@ -49,8 +50,7 @@ def initialize_table():
     """
     body = etree.SubElement(root, "body")
     h1 = etree.SubElement(body, "h1")
-    with open("config.json", "r") as f:
-        h1.text = json.load(f).get("HTML_sign")
+    h1.text = HTML_SIGN
     table = etree.SubElement(body, "table")
     nfrow = etree.fromstring(nfrowhtml)
     table.append(nfrow)
@@ -100,8 +100,10 @@ def html_maker(students: List[StudentCreate]):
     table = root.xpath("//table")[0]
     cnt = 0
     cnt2 = 0
+    passed_students, failed_students = 0, 0
+
     for student in students:
-        subjests = student.subjects_marks
+        subjests = sorted(student.subjects_marks, key=lambda x: x.subject.name)
         if len(subjests) == 0:
             continue
         cnt += 1
@@ -120,6 +122,12 @@ def html_maker(students: List[StudentCreate]):
         sub_name.text = st_name
         if cnt % 2:
             sub_name.set("style", "background-color: #8EA7E9")
+        is_passed_student = is_passed(student.subjects_marks)
+        if not is_passed_student:
+            failed_students += 1
+            sub_name.set("style", "background-color: #ff8383")
+        else:
+            passed_students += 1
         base_row.append(sub_name)
         style = "background-color: {}"
         for i, row in enumerate(subjests):
@@ -149,4 +157,9 @@ def html_maker(students: List[StudentCreate]):
                 )
             table.append(base_row)
             base_row = etree.Element("tr")
+    body = table = root.xpath("//body")[0]
+    h1 = etree.SubElement(body, "h1")
+    h1.text = "عدد الراسبين: {} من أصل {}".format(
+        failed_students, passed_students + failed_students
+    )
     return etree.tostring(root)

@@ -17,7 +17,7 @@ WARINNG_MESSAGE = """
 
 START_MESSAGE = ""
 with open("config.json", "r", encoding="utf-8") as f:
-    START_MESSAGE = json.load(f)["start"]
-
-with open("config.json", "r", encoding="utf-8") as f:
-    FILE_CAPTION = json.load(f).get("caption")
+    dc = json.load(f)
+    START_MESSAGE = dc["start"]
+    FILE_CAPTION = dc.get("caption")
+    HTML_SIGN = dc.get("HTML_sign")

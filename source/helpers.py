@@ -3,16 +3,15 @@ import random
 from io import BytesIO
 from typing import List, Optional
 
+from constants import DATABASE_URL, WARINNG_MESSAGE
 from models import Base, BotUser, Season, SubjectMark, SubjectName
 from queries import get_student_rank_by_subject, get_user_from_db, insert_user, is_exist
-from schemas import StudentCreate, StudentSchema
+from schemas import StudentCreate, StudentSchema, SubjectMarkCreateSchema
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-
-from constants import DATABASE_URL, WARINNG_MESSAGE
 
 logger = logging.getLogger(__name__)
 
@@ -211,3 +210,17 @@ def acquire_task_or_drop(func):
         return ret
 
     return inner
+
+
+def is_passed(marks: list[SubjectMarkCreateSchema]) -> bool:
+    sorted_marks = sorted(marks, key=lambda x: x.total, reverse=True)
+    help_marks = 2
+    faild = 0
+    for mark in sorted_marks:
+        if mark.total >= 60:
+            continue
+        if mark.total < 60 and mark.total + help_marks >= 60:
+            help_marks -= 60 - mark.total
+        else:
+            faild += 1
+    return faild < 5
