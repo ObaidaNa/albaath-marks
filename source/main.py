@@ -559,7 +559,9 @@ async def new_update_checker(
         gathered_results = await multi_async_request([number])
         if last_length != get_rows_lenght(gathered_results[0].html_page):
             student = extract_data(gathered_results[0])
-            await send_txt_results(None, context, user_id, [student])
+            await send_txt_results(
+                None, context, user_id, [student], is_from_website=True
+            )
 
             context.user_data["stored_task"] = None
             break
@@ -759,7 +761,7 @@ def main() -> None:
     application.job_queue.run_repeating(
         send_db_backup,
         timedelta(hours=6),
-        timedelta(seconds=20),
+        # timedelta(seconds=20),
     )
     application.run_polling()
 
