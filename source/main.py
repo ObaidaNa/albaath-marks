@@ -761,7 +761,7 @@ def main() -> None:
     application.job_queue.run_repeating(
         send_db_backup,
         timedelta(hours=6),
-        # timedelta(seconds=20),
+        timedelta(seconds=20),
     )
     application.run_polling()
 
