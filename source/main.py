@@ -194,6 +194,8 @@ async def responser(
     caption="",
 ):
     query = update.callback_query
+    if query:
+        await query.answer()
     user_id = get_user_id(update)
     user = check_and_insert_user(update, context)
     recurse_limit = 15 if user.is_whitelisted else 3
@@ -216,8 +218,6 @@ async def responser(
 
     if query or len(numbers) > 10 or html_bl:
         task_uuid = str(uuid4())
-        if query:
-            await query.answer()
         coro = doing_the_work(
             update,
             context,
