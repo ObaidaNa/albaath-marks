@@ -158,8 +158,11 @@ def html_maker(students: List[StudentCreate]):
             table.append(base_row)
             base_row = etree.Element("tr")
     body = table = root.xpath("//body")[0]
+    total_students = passed_students + failed_students
     h1 = etree.SubElement(body, "h1")
-    h1.text = "عدد الراسبين: {} من أصل {}".format(
-        failed_students, passed_students + failed_students
+    h1.text = "عدد الراسبين: {} من أصل {}".format(failed_students, total_students)
+    h2 = etree.SubElement(body, "h1")
+    h2.text = "نسبة الرسوب: {}%".format(
+        round(failed_students / total_students * 100, 2)
     )
     return etree.tostring(root)
