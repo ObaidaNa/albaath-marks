@@ -195,7 +195,10 @@ async def responser(
 ):
     query = update.callback_query
     if query:
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass  # do nothing, as it's not important
     user_id = get_user_id(update)
     user = check_and_insert_user(update, context)
     recurse_limit = 15 if user.is_whitelisted else 3
