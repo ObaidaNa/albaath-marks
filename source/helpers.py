@@ -179,7 +179,9 @@ def parse_marks_to_text_from_db(
             rank = get_student_rank_by_subject(session, subject, season)
             output.append("\n📊 _الترتيب_: `{}`".format(rank))
             output.append(escape_markdown("\n-----------\n", version=2))
-
+        marks_sum = sum([x.total for x in marks])
+        avg_result = str(round(marks_sum / len(marks), 3))
+        output.append("\n🧮 *المعدل*: `{}`\n".format(escape_markdown(avg_result, 2)))
         output.append("\n> *By*: @albaath\\_marks\\_bot")
     return "".join(output)
 
