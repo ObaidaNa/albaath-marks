@@ -1,5 +1,5 @@
 import asyncio
-import os
+import sqlite3
 import subprocess
 from datetime import datetime
 from io import BytesIO
@@ -108,10 +108,14 @@ async def send_db_now(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_db_backup(context: ContextTypes.DEFAULT_TYPE):
+    con = sqlite3.connect(DATABASE_NAME)
+    db_io = BytesIO()
+
+    for line in con.iterdump():
+        db_io.write(f"{line}\n".encode())
+    con.close()
     backup_filename = "backup{}.sqlite3".format(datetime.now().strftime("%Y%m%d%H%M%S"))
-    os.system("cp {} {}".format(DATABASE_NAME, backup_filename))
-    await context.bot.send_document(DEV_ID, backup_filename)
-    os.system("rm {}".format(backup_filename))
+    await context.bot.send_document(DEV_ID, db_io.getvalue(), filename=backup_filename)
 
 
 @verify_admin
