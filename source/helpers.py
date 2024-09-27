@@ -73,8 +73,7 @@ def verify_blocked_user(func):
     async def inner_func(
         update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
     ):
-        query = update.inline_query
-        user_id = query.from_user.id if query else update.message.from_user.id
+        user_id = update.effective_user.id
         user = get_user_from_db(get_session(context), user_id)
         if user and user.is_blocked:
             return

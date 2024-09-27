@@ -6,7 +6,7 @@ import os
 import re
 import time
 import traceback
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from random import random
 from typing import List, Optional
@@ -173,6 +173,7 @@ async def inline_query_handler(
     await update.inline_query.answer(results)
 
 
+@verify_blocked_user
 async def search_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_message = update.message if update.message else update.edited_message
     text_query = update_message.text.strip()
@@ -186,6 +187,7 @@ async def search_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return await responser(update, context, [x.university_number for x in results])
 
 
+@verify_blocked_user
 async def responser(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -329,6 +331,7 @@ async def get_stored_marks(
         await output_coro
 
 
+@verify_blocked_user
 async def send_marks_by_season(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     student_number, season_id = list(map(int, query.data.split()))
@@ -610,7 +613,7 @@ async def lazy_in_range_task(update: Update, context: ContextTypes.DEFAULT_TYPE)
     all_numbers = {i for i in range(start_number, end_number + 1)}
     Session = get_session(context)
     first_start = time.time()
-    after_date = datetime.now(UTC) - timedelta(minutes=time_offset)
+    after_date = datetime.now(timezone.utc) - timedelta(minutes=time_offset)
 
     with Session() as session:
         season = get_all_season(session)[0]
@@ -636,7 +639,7 @@ async def lazy_in_range_task(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
         )
 
-    after_date = datetime.now(UTC) - timedelta(
+    after_date = datetime.now(timezone.utc) - timedelta(
         minutes=time_offset, seconds=(time.time() - first_start) + 1
     )
     with Session() as session:
