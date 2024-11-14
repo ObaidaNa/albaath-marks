@@ -769,7 +769,14 @@ def main() -> None:
         timedelta(hours=6),
         timedelta(seconds=20),
     )
-    application.run_polling()
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=8443,
+        secret_token=os.getenv("SECRET_TOKEN"),
+        key="private.key",
+        cert="cert.pem",
+        webhook_url=os.getenv("WEBHOOK_URL"),
+    )
 
 
 if __name__ == "__main__":
