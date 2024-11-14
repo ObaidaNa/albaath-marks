@@ -1,7 +1,7 @@
 from typing import List
 
 from constants import HTML_SIGN
-from helpers import is_passed
+from helpers import fix_arabic_encoding, is_passed
 from lxml import etree
 from schemas import StudentCreate, SubjectMarkCreateSchema, SubjectNameCreateSchema
 from web_scrapper import WebStudentResponse
@@ -62,7 +62,7 @@ def extract_data(student_res: WebStudentResponse) -> StudentCreate:
     doc = etree.fromstring(student_res.html_page.decode("utf-8"), parser)
     rows = doc.xpath("//table//tr")
 
-    student_name = str(rows[0].xpath(".//td")[0].text)
+    student_name = fix_arabic_encoding(str(rows[0].xpath(".//td")[0].text))
     if student_name == "None":
         student_name = "NULL"
 
@@ -75,7 +75,7 @@ def extract_data(student_res: WebStudentResponse) -> StudentCreate:
 
     for i, row in enumerate(rows[2:]):
         columns = row.xpath(".//td")
-        subject_name = str(columns[0].text).strip()
+        subject_name = fix_arabic_encoding(str(columns[0].text).strip())
         subject_schema = SubjectNameCreateSchema(name=subject_name)
         amali = int(columns[1].text) if str(columns[1].text).isdigit() else 0
         nazari = int(columns[2].text) if str(columns[2].text).isdigit() else 0

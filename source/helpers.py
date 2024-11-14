@@ -225,3 +225,68 @@ def is_passed(marks: list[SubjectMarkCreateSchema]) -> bool:
         else:
             faild += 1
     return faild < 5
+
+
+ar_map = {
+    "Ø¨": "ب",
+    "Øª": "ت",
+    "Ø«": "ث",
+    "Ø¬": "ج",
+    "Ø­": "ح",
+    "Ø®": "خ",
+    "Ø¯": "د",
+    "Ø°": "ذ",
+    "Ø±": "ر",
+    "Ù€": "ر",
+    "Ø²": "ز",
+    "Ø³": "س",
+    "Ø´": "ش",
+    "Øµ": "ص",
+    "Ø¶": "ض",
+    "Ø·": "ط",
+    "Ø¸": "ظ",
+    "Ø¹": "ع",
+    "Øº": "غ",
+    "Ù": "ف",
+    "Ù‚": "ق",
+    "Ùƒ": "ك",
+    "Ù„": "ل",
+    "Ù…": "م",
+    "Ù†": "ن",
+    "Ù‡": "ه",
+    "Ùˆ": "و",
+    "ÙŠ": "ي",
+    "Ø§": "ا",
+    "Ø¥": "إ",
+    "Ø¦": "ئ",
+    "Ø£": "أ",
+    "Ø¢": "آ",
+    "ÙŽ": "ـ",
+    "Ø¡": "ء",
+    "Ù‰": "ى",
+    "Ø©": "ة",
+    "Ø¤": "ؤ",
+}
+
+
+def is_arabic(x: str) -> bool:
+    return "\u0621" <= x <= "\u064a"
+
+
+def is_ascii(x: str) -> bool:
+    return ord(x) < 128
+
+
+def fix_arabic_encoding(text: str) -> str:
+    buffer = ""
+    fixed = ""
+    for i in range(len(text)):
+        if is_ascii(text[i]) or is_arabic(text[i]):
+            buffer = ""
+            fixed += text[i]
+            continue
+        buffer += text[i]
+        if len(buffer) == 2:
+            fixed += ar_map[buffer]
+            buffer = ""
+    return fixed
