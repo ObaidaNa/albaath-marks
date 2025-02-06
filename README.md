@@ -4,7 +4,7 @@
 [![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://github.com/ellerbrock/open-source-badges/)
 [![MIT License](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/sagarlad04/telegram-university-marks-bot/blob/master/LICENSE)
 
-This is a Telegram bot written in Python that generates an HTML file or a text message for a student's marks based on their ID number in [Albaath-Universty - IT College](https://exam.albaath-univ.edu.sy/exam-it/).
+This is a Telegram bot written in Python that generates an HTML file or a text message for a student's marks based on their ID number in [Homs-Universty - IT College](https://exam.homs-univ.edu.sy/exam-it/).
 
 ## Table of Contents
 
