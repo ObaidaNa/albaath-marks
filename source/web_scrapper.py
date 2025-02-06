@@ -4,7 +4,7 @@ from typing import List
 
 import aiohttp
 
-UNIVERSITY_URL = "https://exam.albaath-univ.edu.sy/exam-it/re.php"
+UNIVERSITY_URL = "https://exam.homs-univ.edu.sy/exam-it/re.php"
 
 
 @dataclass
