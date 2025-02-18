@@ -61,8 +61,8 @@ Before you use this bot, you need to have:
 1. Clone this repository to your local machine.
 
     ```shell
-    git clone https://github.com/ObaidaNa/albaath-marks.git
-    cd albaath-marks
+    git clone https://github.com/ObaidaNa/syria-marks.git
+    cd syria-marks
     ```
 
 2. Add your bot token to the `config.json` file.
