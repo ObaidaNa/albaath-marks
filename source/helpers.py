@@ -61,7 +61,7 @@ def convert_makrs_to_md_file(
     lst.append("- العدد الكلي: {}\n".format(len(marks)))
     lst.append("- عدد الناجحين: {}\n\n".format(passed_cnt))
     lst.append("# By: [@{}](https://t.me/{})\n\n".format(bot_username, bot_username))
-    lst.append("# قناة البوت: https://t.me/albaath_marks\n---")
+    lst.append("# قناة البوت: https://t.me/Syria_Marks_Bot\n---")
     output = "".join(lst)
     with BytesIO() as f:
         f.write(output.encode())
@@ -143,7 +143,7 @@ def parse_marks_to_text_from_website(student: StudentCreate) -> str:
         output.append(escape_markdown("\n-----------\n", version=2))
 
     output.append("\n> *من الموقع* ✔️\n")
-    output.append("\n> *By*: @albaath\\_marks\\_bot")
+    output.append("\n> *By*: @syria\\_marks\\_bot")
     return "".join(output)
 
 
@@ -181,7 +181,7 @@ def parse_marks_to_text_from_db(
         marks_sum = sum([x.total for x in marks])
         avg_result = str(round(marks_sum / len(marks), 3))
         output.append("\n🧮 *المعدل*: `{}`\n".format(escape_markdown(avg_result, 2)))
-        output.append("\n> *By*: @albaath\\_marks\\_bot")
+        output.append("\n> *By*: @syria\\_marks\\_bot")
     return "".join(output)
 
 
