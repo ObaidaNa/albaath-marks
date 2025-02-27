@@ -2,7 +2,7 @@ import json
 import os
 
 DANGER_TIME_DURATION = 60
-DEV_ID = os.getenv("DEV_ID", 668270522)
+DEV_ID = int(os.getenv("DEV_ID", 668270522))
 DATABASE_URL = os.getenv("DATABASE_URL")
 DATABASE_NAME = os.getenv("DATABASE_NAME", "marks_bot_db.sqlite3")
 DATABASE_URL = "sqlite:///{}".format(DATABASE_NAME)

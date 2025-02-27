@@ -437,18 +437,10 @@ async def send_txt_results(
             output = parse_marks_to_text_from_website(student)
         else:
             output = parse_marks_to_text_from_db(student, context, seasons[0])
-        if student.name == "NULL":
+        if student.name == "NULL" and not student.subjects_marks: 
             coro = context.bot.send_message(
                 user_id,
                 f"الرقم الامتحاني {student.university_number} خاطئ",
-                reply_to_message_id=reply_to_msg,
-            )
-        elif not output:
-            coro = context.bot.send_message(
-                user_id,
-                "لا يوجد علامات للطالب {} ذو الرقم {} حاليا....".format(
-                    student.name, student.university_number
-                ),
                 reply_to_message_id=reply_to_msg,
             )
         else:
@@ -456,7 +448,7 @@ async def send_txt_results(
                 "text": output,
                 "parse_mode": ParseMode.MARKDOWN_V2,
             }
-            if is_from_website:
+            if is_from_website and student.subjects_marks:
                 send_msg_kwargs["reply_markup"] = InlineKeyboardMarkup(
                     [
                         [

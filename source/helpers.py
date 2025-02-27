@@ -124,14 +124,15 @@ def parse_marks_to_text_from_website(student: StudentCreate) -> str:
     marks.sort(key=lambda x: x.subject.name)
     books = ["📕", "📗", "📘", "📙"]
     random.shuffle(books)
-    if len(marks) == 0:
-        return ""
-
     output = [
         "👤 *",
         escape_markdown(student.name, version=2)
         + f" \- {student.university_number} *:\n\n",
     ]
+
+    if len(marks) == 0:
+        return "".join([*output, "\n📭 لا يوجد علامات حاليا"])
+
     for i, subject in enumerate(marks):
         output.append(f"{books[i % len(books)]} _*")
         output.append(escape_markdown(f"({subject.subject.name})", version=2) + "*_\n")
