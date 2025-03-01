@@ -314,6 +314,8 @@ async def admin_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "/delete_all_students (delete all stored students and their marks)",
         "/get_from_db_by_student_id [university id] (get result from db only)",
         "/get_from_db_by_subject [subject name]",
+        "/pdf_get_from_db_by_subject [subject name]",
+        "/pdf_get_all_subjects (get all stored marks of all subjects, in pdf format)",
         "/download_this_file [reply to file] (it will download it to it's local storage)",
         "/get_all_subjects (get all stored marks of all subjects, in md format)",
         "/admin_help (show this message)",
