@@ -64,10 +64,10 @@ def convert_marks_to_pdf_file(
     pdf = FPDF()
     # add font 
     # NOTE: Arabic don't work with this Italic font
-    pdf.add_font("DejaVu","",fname="./source/fonts/DejaVuSans.ttf")
-    pdf.add_font("DejaVu","B",fname="./source/fonts/DejaVuSans-Bold.ttf")
-    pdf.add_font("DejaVu","I",fname="./source/fonts/DejaVuSerif-Italic.ttf")
-    pdf.set_font("DejaVu", size=10)
+    pdf.add_font("MyFont","",fname="./source/fonts/Vazir.ttf")
+    pdf.add_font("MyFont","B",fname="./source/fonts/Vazir-Bold.ttf")
+    pdf.add_font("MyFont","I",fname="./source/fonts/DejaVuSerif-Italic.ttf")
+    pdf.set_font("MyFont", size=10)
     pdf.set_text_shaping(True)
     pdf.set_page_background(hex_to_rgb(current_theme["background"]))
     pdf.add_page()
