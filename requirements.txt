@@ -25,3 +25,5 @@ sqlalchemy==2.0.31
 typing-extensions==4.12.2
 tzlocal==5.2
 yarl==1.9.4
+uharfbuzz==0.45.0
+fpdf2==2.8.2

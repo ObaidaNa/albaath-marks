@@ -34,6 +34,8 @@ from admin_commands import (
     send_message,
     unblock_user,
     update_database,
+    pdf_get_from_db_by_subject,
+    pdf_get_all_subjects
 )
 from concurent_update_processer import ConcurentUpdateProcessor
 from constants import DANGER_TIME_DURATION, DEV_ID, FILE_CAPTION, START_MESSAGE
@@ -72,6 +74,7 @@ from telegram import (
     InputTextMessageContent,
     Update,
 )
+from pdf_maker import convert_marks_to_pdf_file 
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
@@ -484,7 +487,6 @@ async def cancel_task_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception:
         await query.answer("لقد تم إلغاء هذه العملية مسبقا", show_alert=True)
 
-
 # some redirecting functions
 @verify_blocked_user
 async def html_it(*args):
@@ -744,6 +746,8 @@ def main() -> None:
             CommandHandler("delete_all_students", delete_all_students),
             CommandHandler("admin_help", admin_help_message),
             CommandHandler("add_season", add_new_season),
+            CommandHandler("pdf_get_all_subjects", pdf_get_all_subjects),
+            CommandHandler("pdf_get_from_db_by_subject", pdf_get_from_db_by_subject),
             InlineQueryHandler(inline_query_handler),
             MessageHandler(filters.Regex(arabic_text_pattern), callback=search_by_name),
             MessageHandler(filters.TEXT & ~filters.COMMAND, callback=responser),
