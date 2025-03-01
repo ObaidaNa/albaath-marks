@@ -74,7 +74,6 @@ from telegram import (
     InputTextMessageContent,
     Update,
 )
-from pdf_maker import convert_marks_to_pdf_file 
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
