@@ -1,3 +1,4 @@
+import logging
 from fpdf import FPDF, FontFace
 from io import BytesIO
 from models import SubjectName, SubjectMark
@@ -12,6 +13,7 @@ WARNING_MESSAGE = """
  
 """
 
+logging.getLogger('fontTools.subset').level = logging.WARN
 
 # Pdf color themes 
 def hex_to_rgb(hex_color):
@@ -126,7 +128,7 @@ def convert_marks_to_pdf_file(
     pdf.cell(h=10, text="https://t.me/Syria_Marks", w=pdf.epw-45, link="https://t.me/Syria_Marks" , align="R") 
     pdf.set_text_color(current_theme["text"])
     pdf.cell(text="قناة بوت العلامات:", w=45, h=10, align="R", ln=1)
-    pdf.cell(text=f"By:" ,h=10)
+    pdf.cell(text="By:" ,h=10)
     pdf.set_text_color(current_theme["link"])
     pdf.cell(h=10,text=f"@{bot_username}", w=0, link=f"https://t.me/{bot_username}") 
     pdf.set_text_color(current_theme["text"])
