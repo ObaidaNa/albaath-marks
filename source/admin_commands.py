@@ -24,6 +24,7 @@ from queries import (
     get_subject_by_name,
     get_user_from_db,
 )
+from pdf_maker import convert_marks_to_pdf_file
 from telegram import Message, Update
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
@@ -273,7 +274,6 @@ async def get_all_subjects(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.application.create_task(get_subjects_task(update, context))
 
-
 @verify_admin
 async def download_this_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     document = update.message.reply_to_message.document
@@ -314,6 +314,8 @@ async def admin_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "/delete_all_students (delete all stored students and their marks)",
         "/get_from_db_by_student_id [university id] (get result from db only)",
         "/get_from_db_by_subject [subject name]",
+        "/pdf_get_from_db_by_subject [subject name]",
+        "/pdf_get_all_subjects (get all stored marks of all subjects, in pdf format)",
         "/download_this_file [reply to file] (it will download it to it's local storage)",
         "/get_all_subjects (get all stored marks of all subjects, in md format)",
         "/admin_help (show this message)",
@@ -339,3 +341,58 @@ async def add_new_season(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with Session.begin() as session:
         session.add(season)
     await update.message.reply_text("Season added successfully...")
+    
+    
+    
+ # experimental features ( Converting to pdf ) 
+@verify_admin
+async def pdf_get_from_db_by_subject(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    subject_name = " ".join(context.args)
+
+    with get_session(context).begin() as session:
+        subject = get_subject_by_name(session, subject_name)
+        if not subject:
+            await update.message.reply_text("this subject name is not exist")
+            subjects = db_get_all_subjects(session)
+            await update.message.reply_text(
+                "\n".join(f"`{subject.name}`" for subject in subjects),
+                parse_mode=ParseMode.MARKDOWN_V2,
+            )
+            return
+        season = get_all_season(session)[0]
+        marks = get_marks_by_subject(session, subject.id, season)
+        marks.sort(key=lambda x: x.student.name)
+    pdf_bytes = convert_marks_to_pdf_file(subject, marks, context.bot.username)
+    await context.bot.send_document(DEV_ID, pdf_bytes, filename=f"{subject.name}.pdf")
+
+
+@verify_admin
+async def pdf_get_all_subjects(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    key_function = lambda x: x.student.name  # noqa: E731
+    is_reversed = False
+    if context.args:
+        key_function = lambda x: x.total  # noqa: E731
+        is_reversed = True
+
+    async def get_subjects_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        with get_session(context).begin() as session:
+            subjects = db_get_all_subjects(session)
+            await update.message.reply_text(
+                "\n".join(f"`{subject.name}`" for subject in subjects),
+                parse_mode=ParseMode.MARKDOWN_V2,
+            )
+            season = get_all_season(session)[0]
+            for subject in subjects:
+                marks = get_marks_by_subject(session, subject.id, season)
+                if not marks:
+                    continue
+                marks.sort(key=key_function, reverse=is_reversed)
+                pdf_bytes = convert_marks_to_pdf_file(
+                    subject, marks, context.bot.username
+                )
+                await context.bot.send_document(
+                    DEV_ID, pdf_bytes, filename=f"{subject.name}.pdf"
+                )
+                await asyncio.sleep(1)
+
+    context.application.create_task(get_subjects_task(update, context))
